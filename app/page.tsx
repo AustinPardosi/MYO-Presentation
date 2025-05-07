@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
+import { toast } from "sonner";
 
 // Type untuk Recent Files
 type RecentFile = {
@@ -13,6 +14,7 @@ type RecentFile = {
     path: string;
 };
 
+// Komponen file uploader yang hanya dirender di sisi klien
 export default function Home() {
     const [isDragging, setIsDragging] = useState(false);
     const [showViewer, setShowViewer] = useState(false);
@@ -20,18 +22,10 @@ export default function Home() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
-    const [isBrowser, setIsBrowser] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    // Check if code is running in browser
-    useEffect(() => {
-        setIsBrowser(true);
-    }, []);
 
     // Load recent files from localStorage
     useEffect(() => {
-        if (!isBrowser) return;
-
         const savedRecentFiles = localStorage.getItem("recentFiles");
         if (savedRecentFiles) {
             try {
@@ -44,24 +38,24 @@ export default function Home() {
                 localStorage.removeItem("recentFiles");
             }
         }
-    }, [isBrowser]);
+    }, []);
 
     // Save recent files to localStorage whenever it changes
     useEffect(() => {
-        if (!isBrowser) return;
-        localStorage.setItem("recentFiles", JSON.stringify(recentFiles));
-    }, [recentFiles, isBrowser]);
+        if (recentFiles.length > 0) {
+            localStorage.setItem("recentFiles", JSON.stringify(recentFiles));
+        }
+    }, [recentFiles]);
 
     const addToRecentFiles = (file: File) => {
-        if (!isBrowser) return;
-
-        // Create a new recent file entry
+        // Gunakan nilai stabil untuk id
         const newRecentFile: RecentFile = {
-            id: Date.now().toString(),
+            id: `${file.name}-${file.size}-${file.lastModified}`,
             name: file.name,
             size: file.size,
+            // Format tanggal dengan timestamp tidak sebagai string untuk menghindari perbedaan format locale
             date: new Date().toISOString(),
-            path: URL.createObjectURL(file), // This URL will be invalid after page refresh
+            path: URL.createObjectURL(file),
         };
 
         // Update recent files list (keep maximum 10 files)
@@ -74,14 +68,6 @@ export default function Home() {
     };
 
     const handleFile = (file: File) => {
-        // Log file details for debugging
-        console.log("File info:", {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            lastModified: new Date(file.lastModified),
-        });
-
         // Check if file is PPTX or PPT - more detailed check
         if (
             file.name.toLowerCase().endsWith(".pptx") ||
@@ -92,11 +78,9 @@ export default function Home() {
         ) {
             setIsLoading(true);
 
-            // Create object URL for the file
-            if (isBrowser) {
-                const url = URL.createObjectURL(file);
-                setFileUrl(url);
-            }
+            // Create object URL for the file (hanya berjalan di client)
+            const url = URL.createObjectURL(file);
+            setFileUrl(url);
 
             setSelectedFile(file);
             setShowViewer(true);
@@ -107,7 +91,7 @@ export default function Home() {
             // Set loading to false since we're not actually loading anything
             setIsLoading(false);
         } else {
-            alert("Please upload a PPTX or PPT file");
+            toast.error("Please upload a PPTX or PPT file");
         }
     };
 
@@ -145,7 +129,7 @@ export default function Home() {
 
     const handleBackClick = () => {
         // Release object URL if exists
-        if (isBrowser && fileUrl) {
+        if (fileUrl) {
             URL.revokeObjectURL(fileUrl);
         }
         setShowViewer(false);
@@ -274,12 +258,12 @@ export default function Home() {
                                 </p>
                                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-100">
                                     <p className="mb-2">
-                                        File berhasil diunggah.
+                                        File uploaded successfully.
                                     </p>
                                     <p className="text-gray-500 text-sm">
-                                        Untuk melihat presentasi, siapkan
-                                        implementasi viewer PowerPoint sesuai
-                                        kebutuhan.
+                                        To view the presentation, prepare a
+                                        PowerPoint viewer implementation as
+                                        needed.
                                     </p>
                                 </div>
                             </div>

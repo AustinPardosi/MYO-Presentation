@@ -2,6 +2,7 @@
 
 import {  Clock } from "lucide-react";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 import {
     Sidebar,
@@ -48,7 +49,13 @@ export function AppSidebar() {
 
     const openRecentFile = (recentFile: RecentFile) => {
         // For demo purposes, we just show details
-        alert(`This would open: ${recentFile.name}`);
+        toast.info(`Opening: ${recentFile.name}`, {
+            description: "This is a demo notification.",
+            action: {
+                label: "View",
+                onClick: () => console.log(`Viewing ${recentFile.name}`)
+            }
+        });
     };
 
     return (

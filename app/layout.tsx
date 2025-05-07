@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/ui/app-sidebar";
-import Script from "next/script";
+import { GrammarlyRemover } from "@/components/ui/GrammarlyRemover";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
     title: "Create Next App",
@@ -19,23 +20,13 @@ export default function RootLayout({
             <body>
                 <SidebarProvider>
                     <AppSidebar />
-                    <main>
+                    <main className="w-full">
                         <SidebarTrigger />
                         {children}
                     </main>
                 </SidebarProvider>
-                <Script id="remove-grammarly-attrs">
-                    {`
-                    document.addEventListener('DOMContentLoaded', function() {
-                        // Menghapus atribut Grammarly dari elemen HTML
-                        const elementsWithGrammarly = document.querySelectorAll('[data-gr-ext-installed], [data-new-gr-c-s-check-loaded]');
-                        elementsWithGrammarly.forEach(element => {
-                            element.removeAttribute('data-gr-ext-installed');
-                            element.removeAttribute('data-new-gr-c-s-check-loaded');
-                        });
-                    });
-                    `}
-                </Script>
+                <Toaster />
+                <GrammarlyRemover />
             </body>
         </html>
     );
