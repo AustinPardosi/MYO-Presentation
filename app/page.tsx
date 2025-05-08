@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
+import { Upload } from "@deemlol/next-icons";
 
 // Type untuk Recent Files
 type RecentFile = {
@@ -152,7 +153,7 @@ export default function Home() {
                         <Image
                             src="/logo-image.svg"
                             alt="Logo"
-                            width={180}
+                            width={200}
                             height={50}
                             style={{ height: "auto" }}
                             priority
@@ -163,8 +164,8 @@ export default function Home() {
                     <div
                         className={`w-full max-w-[500px] h-[300px] border border-dashed ${
                             isDragging
-                                ? "border-blue-500 bg-blue-50"
-                                : "border-gray-300"
+                                ? "border-[#27592A] bg-[#131913]"
+                                : "border-gray-500"
                         } rounded-md p-8 flex flex-col items-center justify-center cursor-pointer`}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
@@ -172,13 +173,7 @@ export default function Home() {
                         onClick={handleBrowseClick}
                     >
                         <div className="mb-6">
-                            <Image
-                                src="/icon-image.svg"
-                                alt="Upload icon"
-                                width={64}
-                                height={64}
-                                style={{ height: "auto" }}
-                            />
+                            <Upload size={40} color="#FFFFFF" />
                         </div>
                         <p className="mb-4 text-center">
                             Drag & Drop PPTX/PPT File
@@ -187,7 +182,7 @@ export default function Home() {
                             or
                         </p>
                         <Button
-                            className="bg-gray-200 text-black hover:bg-gray-300"
+                            className="bg-primary text-white hover:bg-[#27592A]"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handleBrowseClick();
@@ -208,7 +203,7 @@ export default function Home() {
                     {/* Tutorial Link */}
                     <div className="mt-4 text-sm">
                         <span>First time using Myo for presentation? </span>
-                        <a href="#" className="text-blue-500 underline">
+                        <a href="#" className="font-bold text-accent underline">
                             See tutorial
                         </a>
                     </div>
@@ -237,7 +232,7 @@ export default function Home() {
                         </div>
 
                         {/* Basic File Display */}
-                        <div className="w-full min-h-[600px] border border-gray-200 rounded-md overflow-auto bg-white p-8 flex flex-col items-center justify-center">
+                        <div className="w-full min-h-[600px] border border-gray-700 rounded-md overflow-auto bg-[#141614] p-8 flex flex-col items-center justify-center">
                             <div className="text-center max-w-md">
                                 <Image
                                     src="/icon-image.svg"

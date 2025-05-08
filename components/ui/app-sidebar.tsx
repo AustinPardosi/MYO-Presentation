@@ -59,7 +59,7 @@ export function AppSidebar() {
     };
 
     return (
-        <Sidebar>
+        <Sidebar className="border border-gray-700">
             <SidebarContent>
                 {/* Recent Files Section */}
                 <SidebarGroup>
@@ -70,7 +70,7 @@ export function AppSidebar() {
                                 recentFiles.map((file) => (
                                     <div
                                         key={file.id}
-                                        className="w-full h-auto border border-gray-200 rounded-md flex flex-col p-2 cursor-pointer hover:bg-gray-50"
+                                        className="w-full h-auto border border-gray-700 rounded-md flex flex-col p-2 cursor-pointer hover:bg-gray-800"
                                         onClick={() => openRecentFile(file)}
                                     >
                                         <div className="flex items-center gap-2">
@@ -79,10 +79,10 @@ export function AppSidebar() {
                                                 {file.name}
                                             </p>
                                         </div>
-                                        <p className="text-gray-500 text-xs ml-6">
+                                        <p className="text-gray-400 text-xs ml-6">
                                             {formatFileSize(file.size)}
                                         </p>
-                                        <p className="text-gray-400 text-xs ml-6 mt-1">
+                                        <p className="text-gray-500 text-xs ml-6 mt-1">
                                             {new Date(
                                                 file.date
                                             ).toLocaleDateString()}
