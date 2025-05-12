@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { Upload } from "@deemlol/next-icons";
+import { NutrientViewer } from "@/components/ui/NutrientViewer";
 
 // Type untuk Recent Files
 type RecentFile = {
@@ -232,7 +233,11 @@ export default function Home() {
                         </div>
 
                         {/* Basic File Display */}
-                        <div className="w-full min-h-[600px] border border-gray-700 rounded-md overflow-auto bg-[#141614] p-8 flex flex-col items-center justify-center">
+                        {selectedFile && <NutrientViewer
+                            file={selectedFile}
+                            className="w-full h-[600px]"
+                        />}
+                        {/* <div className="w-full min-h-[600px] border border-gray-700 rounded-md overflow-auto bg-[#141614] p-8 flex flex-col items-center justify-center">
                             <div className="text-center max-w-md">
                                 <Image
                                     src="/icon-image.svg"
@@ -262,7 +267,7 @@ export default function Home() {
                                     </p>
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             )}
