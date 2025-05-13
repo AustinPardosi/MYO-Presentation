@@ -29,6 +29,10 @@ export function NutrientViewer({
           container,
           document: fileBuffer,
           baseUrl: `${window.location.protocol}//${window.location.host}/`,
+          theme: Viewer.Theme.DARK,
+          initialViewState: new Viewer.ViewState({
+            sidebarMode: Viewer.SidebarMode.THUMBNAILS
+          })
         });
       }
 
