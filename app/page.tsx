@@ -151,6 +151,10 @@ export default function Home() {
         setFileUrl(null);
     };
 
+    const handlePresentClick = () => {
+        viewerRef.current?.toggleFullscreen();
+    }
+
     const toggleTutorial = () => {
         setShowTutorial(!showTutorial);
     };
@@ -326,10 +330,10 @@ export default function Home() {
                             </h2>
                         </div>
                         <Button
-                            onClick={handleBackClick}
+                            onClick={handlePresentClick}
                             className="bg-gray-200 text-black hover:bg-gray-300"
                         >
-                            Back to Upload
+                            Present
                         </Button>
                     </div>
 
@@ -337,6 +341,7 @@ export default function Home() {
                     {selectedFile && (
                         <div className="flex-grow w-full overflow-hidden">
                             <NutrientViewer
+                                ref={viewerRef}
                                 file={selectedFile}
                                 className="w-full h-full"
                             />

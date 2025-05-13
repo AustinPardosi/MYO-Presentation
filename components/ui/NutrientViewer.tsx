@@ -49,18 +49,17 @@ const gestureMessages: Record<MyoGesture, (isActive?: boolean) => string> = {
 };
 
 export interface NutrientViewerRef {
-    container: HTMLDivElement | null;
-    instance: NutrientType.Instance | null;
-  setCurrentPage: (i: number) => void;
-  nextPage: () => void;
-  previousPage: () => void;
+    toggleFullscreen: () => Promise<void>;
+    setCurrentPage: (i: number) => void;
+    nextPage: () => void;
+    previousPage: () => void;
 }
 
-export function NutrientViewer({
+export const NutrientViewer = React.forwardRef<NutrientViewerRef, React.ComponentProps<"div"> & { file: File }>(function NutrientViewer({
     file,
     className,
     ...props
-}: React.ComponentProps<"div"> & { file: File }) {
+}, ref) {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const viewerRef = React.useRef<NutrientType.Instance>(null);
     const [fileBuffer, setFileBuffer] = React.useState<ArrayBuffer | null>(
@@ -75,6 +74,29 @@ export function NutrientViewer({
 
     // Ref untuk menyimpan waktu terakhir gesture diproses
     const lastGestureTimeRef = React.useRef<number>(0);
+
+    const toggleFullscreen = async () => {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else {
+            await containerRef.current?.requestFullscreen();
+        }
+    };
+
+    const setCurrentPage = (i: number) => {
+        if (viewerRef.current && 0 <= i && i < viewerRef.current?.totalPageCount) {
+            viewerRef.current?.setViewState(state => state
+                .set("currentPageIndex", i)
+            );
+        }
+    }
+
+    React.useImperativeHandle(ref, () => ({
+        toggleFullscreen,
+        setCurrentPage,
+        nextPage: () => viewerRef.current && setCurrentPage(viewerRef.current.viewState.currentPageIndex + 1),
+        previousPage: () => viewerRef.current && setCurrentPage(viewerRef.current.viewState.currentPageIndex - 1),
+    }));
 
     // Fungsi untuk mengatur mode unlocked dengan debounce protection
     const setUnlockedMode = (value: boolean) => {
@@ -284,7 +306,7 @@ export function NutrientViewer({
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const instance = viewerRef.current as any;
-        const methods = [];
+        const methods: string[] = [];
 
         // Check methods existence
         if (typeof instance.goToPage === "function") methods.push("goToPage");
@@ -297,6 +319,7 @@ export function NutrientViewer({
         const currentPage = viewerRef.current.viewState.currentPageIndex;
 
         // Get total pages
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const viewStateAny = viewerRef.current.viewState as any;
         const totalPages =
             viewStateAny.totalPageCount ||
@@ -494,11 +517,7 @@ export function NutrientViewer({
                 console.log("Processing fist gesture - toggle fullscreen");
                 try {
                     const isEnteringFullscreen = !document.fullscreenElement;
-                    if (document.fullscreenElement) {
-                        document.exitFullscreen();
-                    } else {
-                        containerRef.current?.requestFullscreen();
-                    }
+                    toggleFullscreen();
                     handleVibrationAndToast(gesture, myo, isEnteringFullscreen);
                     console.log("Successfully processed fist gesture");
                 } catch (err) {
@@ -624,21 +643,6 @@ export function NutrientViewer({
                     { type: "highlighter" },
                 ];
 
-                // Include fullscreen toggle if browser support fullscreen item
-                if (document.fullscreenEnabled) {
-                    toolbarItems.push({
-                        type: "custom",
-                        title: "Toggle fullscreen",
-                        onPress: async () => {
-                            if (document.fullscreenElement) {
-                                document.exitFullscreen();
-                            } else {
-                                await containerRef.current?.requestFullscreen();
-                            }
-                        },
-                    });
-                }
-
                 // Add Myo control status and unlock status item
                 toolbarItems.push({
                     type: "custom",
@@ -697,7 +701,7 @@ export function NutrientViewer({
         })();
 
         return cleanup;
-    }, [fileBuffer, myoConnected]);
+    }, [fileBuffer, myoConnected, unlocked]);
 
     return (
         <>
@@ -855,4 +859,4 @@ export function NutrientViewer({
             <div ref={containerRef} className={className} {...props} />
         </>
     );
-}
+});
