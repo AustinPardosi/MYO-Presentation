@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import type { Metadata } from "next";
 import "./globals.css";
@@ -7,6 +7,7 @@ import { AppSidebar } from "@/components/ui/app-sidebar";
 import { GrammarlyRemover } from "@/components/ui/GrammarlyRemover";
 import { Toaster } from "@/components/ui/sonner";
 import { useSearchParams } from "next/navigation";
+import { MyoConsoleLogger } from "@/components/ui/MyoConsoleLogger";
 
 // export const metadata: Metadata = {
 //     title: "MYO Present",
@@ -33,6 +34,8 @@ export default function RootLayout({
                 </SidebarProvider>
                 <Toaster />
                 <GrammarlyRemover />
+                {/* MyoConsoleLogger untuk mendeteksi gerakan Myo dan mencetaknya ke konsol */}
+                <MyoConsoleLogger />
             </body>
         </html>
     );
