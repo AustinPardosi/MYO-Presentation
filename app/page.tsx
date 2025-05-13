@@ -8,6 +8,8 @@ import { Upload } from "@deemlol/next-icons";
 import { NutrientViewer, NutrientViewerRef } from "@/components/ui/NutrientViewer";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import OnboardingGestures from "@/components/ui/onboarding-gestures";
+import OnboardingPresent from "@/components/ui/onboarding-present";
 
 // Type untuk Recent Files
 type RecentFile = {
@@ -26,10 +28,23 @@ export default function Home() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
+    const [onboardingStep, setOnboardingStep] = useState<GestureKey | null>(null);
+    const [showOnboarding, setShowOnboarding] = useState(false);
+    const [showOnboardingPresent, setShowOnboardingPresent] = useState(false);
+
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const viewerRef = useRef<NutrientViewerRef>(null);
     const router = useRouter();
+    const onboardingSequence: GestureKey[] = [
+        "unlock",
+        "next",
+        "prev",
+        "activatePointer",
+        "deactivatePointer",
+        "fullscreen",
+        "end"
+    ];
 
     // Load recent files from localStorage
     useEffect(() => {
@@ -148,7 +163,32 @@ export default function Home() {
     };
 
     const handlePresentClick = () => {
+    if (showOnboardingPresent) {
+        setShowOnboardingPresent(false); // hide onboarding overlay
         viewerRef.current?.toggleFullscreen();
+        // show gestures after fullscreen enters (delay to wait for fullscreen)
+        setTimeout(() => {
+            setShowOnboarding(true);
+            setOnboardingStep("unlock");
+        }, 500);
+    } else {
+        viewerRef.current?.toggleFullscreen();
+    }
+};
+
+    // const startOnboarding = () => {
+    //     setShowOnboarding(true);
+    //     setOnboardingStep("unlock");
+    // };
+    const startOnboarding = () => {
+        setShowOnboardingPresent(true);
+    };
+
+    const handleNextStep = () => {
+        const currentIndex = onboardingSequence.indexOf(onboardingStep!);
+        const nextStep = onboardingSequence[currentIndex + 1];
+        if (nextStep) setOnboardingStep(nextStep);
+        else setShowOnboarding(false); // End onboarding
     };
 
     return (
@@ -211,17 +251,27 @@ export default function Home() {
                         {/* Tutorial Link */}
                         <div className="mt-4 text-sm">
                             <span>First time using Myo for presentation? </span>
-                            <a href="#" className="font-bold text-accent underline">
+                            <Button variant="link" className="font-bold text-accent underline p-0" onClick={async () => {
+                                const response = await fetch("/TerraFarm.pptx");
+                                const blob = await response.blob();
+                                const file = new File([blob], "TerraFarm.pptx", { type: blob.type });
+                                handleFile(file);
+                                setTimeout(() => startOnboarding(), 4000);
+                            }}>
                                 See tutorial
-                            </a>
+                            </Button>
+
                         </div>
                     </div>
                 </div>
             ) : (
                 <div className="flex flex-col w-full h-screen overflow-hidden">
+                    {showOnboardingPresent && <OnboardingPresent handleBackClick={handleBackClick} />}
+                    {showOnboarding && onboardingStep && <OnboardingGestures gesture={onboardingStep} handleBackClick={handleBackClick} handleNextStep={handleNextStep} />
+                        }
                         {/* Header (File Info) */}
                         <div className="my-6 mx-4 flex justify-between items-center shrink-0">
-                            <Button onClick={handleBackClick} className="bg-transparent">
+                            <Button onClick={handleBackClick} className="bg-transparent hover:bg-transparent">
                                 <Image src="/logo-image.svg" alt="Logo" width={80} height={20} style={{ height: "auto" }} priority />
                             </Button>
                             <div>
@@ -230,7 +280,7 @@ export default function Home() {
                             {/* <Button onClick={handleBackClick} className="bg-gray-200 text-black hover:bg-gray-300">
                                 Back to Upload
                             </Button> */}
-                            <Button onClick={handlePresentClick} className="bg-gray-200 text-black hover:bg-gray-300">
+                            <Button onClick={handlePresentClick} className="z-60 bg-gray-200 text-black hover:bg-gray-300 cursor-pointer">
                                 Present
                             </Button>
                         </div>
@@ -238,7 +288,19 @@ export default function Home() {
                         {/* Basic File Display */}
                         {selectedFile && (
                             <div className="flex-grow w-full overflow-hidden">
-                                <NutrientViewer ref={viewerRef} file={selectedFile} className="w-full h-full" />
+                                <NutrientViewer 
+                                    ref={viewerRef} 
+                                    file={selectedFile} 
+                                    className="w-full h-full"
+                                    overlay={
+                                        showOnboarding && onboardingStep && (
+                                            <OnboardingGestures 
+                                                gesture={onboardingStep} 
+                                                handleBackClick={handleBackClick} 
+                                                handleNextStep={handleNextStep} />
+                                        )
+                                    }
+                                />
                             </div>
                         )}
                 </div>

@@ -9,10 +9,11 @@ export interface NutrientViewerRef {
 
 export type NutrientViewerProps = React.ComponentProps<"div"> & {
   file: File;
+  overlay?: React.ReactNode;
 }
 
 export const NutrientViewer = React.forwardRef<NutrientViewerRef, NutrientViewerProps>(function NutrientViewer({
-  file, className, ...props
+  file, className, overlay, ...props
 }, ref) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const viewerRef = React.useRef<NutrientType.Instance>(null);
@@ -108,6 +109,12 @@ export const NutrientViewer = React.forwardRef<NutrientViewerRef, NutrientViewer
       ref={containerRef}
       className={className}
       {...props}
-    />
+    >
+      {overlay && (
+        <div className="absolute inset-0 z-50">
+          {overlay}
+        </div>
+      )}
+    </div>
   );
 });
