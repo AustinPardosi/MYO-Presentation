@@ -5,6 +5,9 @@ import * as React from "react";
 
 export interface NutrientViewerRef {
   toggleFullscreen: () => Promise<void>;
+  setCurrentPage: (i: number) => void;
+  nextPage: () => void;
+  previousPage: () => void;
 }
 
 export type NutrientViewerProps = React.ComponentProps<"div"> & {
@@ -18,7 +21,7 @@ export const NutrientViewer = React.forwardRef<NutrientViewerRef, NutrientViewer
   const viewerRef = React.useRef<NutrientType.Instance>(null);
 
   const [fileBuffer, setFileBuffer] = React.useState<ArrayBuffer | null>(null);
-
+  
   const toggleFullscreen = async () => {
     if (document.fullscreenElement) {
       document.exitFullscreen();
@@ -27,9 +30,24 @@ export const NutrientViewer = React.forwardRef<NutrientViewerRef, NutrientViewer
     }
   };
 
+  const setCurrentPage = (i: number) => {
+    const viewer = viewerRef.current;
+    if (viewer && 0 <= i && i < viewer.totalPageCount) {
+      viewer.setViewState(state => state
+        .set("currentPageIndex", i)
+      );
+    }
+  };
+  
+  const nextPage = () => viewerRef.current && setCurrentPage(viewerRef.current.viewState.currentPageIndex + 1);
+  const previousPage = () => viewerRef.current && setCurrentPage(viewerRef.current.viewState.currentPageIndex - 1);
+
   // Forward handles to parent component to control fullscreen mode
   React.useImperativeHandle(ref, () => ({
     toggleFullscreen,
+    setCurrentPage,
+    nextPage,
+    previousPage,
   }));
 
   // Hide toolbar and sidebar when on fullscreen mode
