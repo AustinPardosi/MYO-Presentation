@@ -3,21 +3,42 @@
 import type * as NutrientType from "@nutrient-sdk/viewer";
 import * as React from "react";
 
-export function NutrientViewer({
+export interface NutrientViewerRef {
+  toggleFullscreen: () => Promise<void>;
+}
+
+export type NutrientViewerProps = React.ComponentProps<"div"> & {
+  file: File;
+}
+
+export const NutrientViewer = React.forwardRef<NutrientViewerRef, NutrientViewerProps>(function NutrientViewer({
   file, className, ...props
-}: React.ComponentProps<"div"> & { file: File }) {
+}, ref) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const viewerRef = React.useRef<NutrientType.Instance>(null);
+
   const [fileBuffer, setFileBuffer] = React.useState<ArrayBuffer | null>(null);
+
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      await containerRef.current?.requestFullscreen();
+    }
+  };
+
+  // Forward handles to parent component to control fullscreen mode
+  React.useImperativeHandle(ref, () => ({
+    toggleFullscreen,
+  }));
 
   // Hide toolbar and sidebar when on fullscreen mode
   const onFullScreenChange = () => {
-    viewerRef.current?.setViewState(state => {
-      const isFullscreen = !!document.fullscreenElement;
-      return state
-        .set("showToolbar", !isFullscreen)
-        .set("sidebarMode", isFullscreen ? null : "THUMBNAILS");
-    });
+    const isFullscreen = !!document.fullscreenElement;
+    viewerRef.current?.setViewState(state => state
+      .set("showToolbar", !isFullscreen)
+      .set("sidebarMode", isFullscreen ? null : "THUMBNAILS")
+    );
   };
 
   // Add event listeners
@@ -53,21 +74,6 @@ export function NutrientViewer({
           { type: "highlighter" },
         ];
 
-        // Include fullscreen toggle if browser support fullscreen item
-        if (document.fullscreenEnabled) {
-          toolbarItems.push({
-            type: "custom",
-            title: "Toggle fullscreen",
-            onPress: async () => {
-              if (document.fullscreenElement) {
-                document.exitFullscreen();
-              } else {
-                await containerRef.current?.requestFullscreen();
-              }
-            },
-          });
-        }
-
         pspdfKit.load({
           container,
           document: fileBuffer,
@@ -83,6 +89,9 @@ export function NutrientViewer({
           })
         }).then(i => {
           viewerRef.current = i;
+          
+          // Call onFullScreenChange() once to handle the case when the page is already in fullscreen mode
+          onFullScreenChange();
         });
       }
 
@@ -101,4 +110,4 @@ export function NutrientViewer({
       {...props}
     />
   );
-}
+});

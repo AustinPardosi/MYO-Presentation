@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { Upload } from "@deemlol/next-icons";
-import { NutrientViewer } from "@/components/ui/NutrientViewer";
+import { NutrientViewer, NutrientViewerRef } from "@/components/ui/NutrientViewer";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 
@@ -26,7 +26,9 @@ export default function Home() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const viewerRef = useRef<NutrientViewerRef>(null);
     const router = useRouter();
 
     // Load recent files from localStorage
@@ -145,6 +147,10 @@ export default function Home() {
         setFileUrl(null);
     };
 
+    const handlePresentClick = () => {
+        viewerRef.current?.toggleFullscreen();
+    };
+
     return (
         <>
             {!showViewer ? (
@@ -221,15 +227,18 @@ export default function Home() {
                             <div>
                                 <h2 className="text-xl font-medium">{selectedFile?.name}</h2>
                             </div>
-                            <Button onClick={handleBackClick} className="bg-gray-200 text-black hover:bg-gray-300">
+                            {/* <Button onClick={handleBackClick} className="bg-gray-200 text-black hover:bg-gray-300">
                                 Back to Upload
+                            </Button> */}
+                            <Button onClick={handlePresentClick} className="bg-gray-200 text-black hover:bg-gray-300">
+                                Present
                             </Button>
                         </div>
 
                         {/* Basic File Display */}
                         {selectedFile && (
                             <div className="flex-grow w-full overflow-hidden">
-                                <NutrientViewer file={selectedFile} className="w-full h-full" />
+                                <NutrientViewer ref={viewerRef} file={selectedFile} className="w-full h-full" />
                             </div>
                         )}
                 </div>
