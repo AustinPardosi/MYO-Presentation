@@ -2,37 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-// Definisi tipe gerakan yang didukung Myo
-export type MyoGesture =
-    | "double_tap"
-    | "wave_in"
-    | "wave_out"
-    | "fingers_spread"
-    | "fist"
-    | "rest";
-
 // Type untuk listener function
-export type GestureHandler = (timestamp: number, data?: any) => void;
+export type GestureHandler = <T>(timestamp: number, data?: T) => void;
 
 // Type untuk mencatat timestamps gerakan
-export interface GestureLog {
+export interface GestureLog<T> {
     gesture: string;
     timestamp: number;
-    data?: any;
-}
-
-// Interface untuk Myo instance
-interface MyoInstance {
-    isConnected: boolean;
-    unlock: (hold: boolean) => void;
-}
-
-// Interface untuk global Myo
-interface MyoStatic {
-    connect: (appName: string) => void;
-    on: (event: string, callback: Function) => void;
-    off: (event: string) => void;
-    myos: MyoInstance[];
+    data?: T;
 }
 
 // Props interface
@@ -47,7 +24,7 @@ interface MyoTutorialListenerProps {
     onRest?: GestureHandler;
 
     // Handler umum untuk semua gerakan
-    onAnyGesture?: (gesture: string, timestamp: number, data?: any) => void;
+    onAnyGesture?: (gesture: string, timestamp: number, data?: unknown) => void;
 
     // Flag untuk menampilkan log di console
     logToConsole?: boolean;
@@ -74,13 +51,15 @@ export function MyoTutorialListener({
     appName = "myo.tutorial.app",
 }: MyoTutorialListenerProps) {
     // State untuk koneksi
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [connected, setConnected] = useState(false);
 
     // State untuk history gerakan jika diperlukan
-    const [gestureHistory, setGestureHistory] = useState<GestureLog[]>([]);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [gestureHistory, setGestureHistory] = useState<GestureLog<unknown>[]>([]);
 
     // Fungsi untuk tracking gerakan
-    const trackGesture = (gesture: string, data?: any) => {
+    const trackGesture = (gesture: string, data?: unknown) => {
         const timestamp = Date.now();
 
         // Log ke console jika diminta
@@ -102,7 +81,7 @@ export function MyoTutorialListener({
         // Return timestamp untuk digunakan di handler spesifik
         return timestamp;
     };
-
+    
     // Inisialisasi dan setup Myo
     useEffect(() => {
         let scriptAdded = false;
@@ -119,7 +98,7 @@ export function MyoTutorialListener({
                 window.Myo.connect(appName);
 
                 // Listener untuk koneksi
-                window.Myo.on("connected", function (this: MyoInstance) {
+                window.Myo.on("connected", function () {
                     console.log("Myo connected!");
                     setConnected(true);
 
@@ -177,14 +156,14 @@ export function MyoTutorialListener({
                 });
 
                 // ORIENTATION LISTENER (Diperlukan untuk rotasi)
-                window.Myo.on("orientation", function (data: any) {
+                window.Myo.on("orientation", function (orientation) {
                     // Implementasi deteksi rotasi sederhana
                     // Perhatikan bahwa ini hanyalah deteksi rotasi sederhana
-                    if (data && data.x && Math.abs(data.x) > 0.7) {
+                    if (Math.abs(orientation.x) > 0.7) {
                         const rotateType =
-                            data.x > 0 ? "rotate_cw" : "rotate_ccw";
-                        const timestamp = trackGesture(rotateType, data);
-                        onRotate?.(timestamp, { type: rotateType, data });
+                            orientation.x > 0 ? "rotate_cw" : "rotate_ccw";
+                        const timestamp = trackGesture(rotateType, orientation);
+                        onRotate?.(timestamp, { type: rotateType, q: orientation });
                     }
                 });
             } catch (error) {
@@ -258,35 +237,28 @@ export function MyoTutorialListener({
         appName,
     ]);
 
-    // Fungsi publik untuk mendapatkan status koneksi
-    const isConnected = () => connected;
+    // // Fungsi publik untuk mendapatkan status koneksi
+    // const isConnected = () => connected;
 
-    // Fungsi publik untuk mendapatkan history gerakan
-    const getGestureHistory = () => gestureHistory;
+    // // Fungsi publik untuk mendapatkan history gerakan
+    // const getGestureHistory = () => gestureHistory;
 
     // Komponen ini tidak merender apa-apa (headless)
     return null;
-}
-
-// Deklarasi global untuk TypeScript
-declare global {
-    interface Window {
-        Myo: MyoStatic;
-    }
 }
 
 // Helper hook untuk menggunakan MyoTutorialListener dalam functional components
 export function useMyoGestures(
     options?: Omit<MyoTutorialListenerProps, "onAnyGesture">
 ) {
-    const [lastGesture, setLastGesture] = useState<GestureLog | null>(null);
-    const [gestureHistory, setGestureHistory] = useState<GestureLog[]>([]);
+    const [lastGesture, setLastGesture] = useState<GestureLog<unknown> | null>(null);
+    const [gestureHistory, setGestureHistory] = useState<GestureLog<unknown>[]>([]);
 
     // Handler untuk menangkap semua gerakan
     const handleAnyGesture = (
         gesture: string,
         timestamp: number,
-        data?: any
+        data?: unknown
     ) => {
         const gestureLog = { gesture, timestamp, data };
         setLastGesture(gestureLog);

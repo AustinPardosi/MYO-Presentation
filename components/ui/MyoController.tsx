@@ -1,69 +1,7 @@
-/* eslint-disable */
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-
-// Deklarasi interface untuk Myo yang lebih lengkap
-declare global {
-  interface MyoInstance {
-    name: string;
-    macAddress: string;
-    connectIndex: number;
-    connected: boolean;
-    synced: boolean;
-    batteryLevel: number;
-    arm?: string;
-    direction?: string;
-    locked: boolean;
-    warmupState?: string;
-    lastIMU?: any;
-    lastPose?: string;
-    streamEMG: (enabled: boolean) => MyoInstance;
-    vibrate: (intensity?: "short" | "medium" | "long") => MyoInstance;
-    requestBatteryLevel: () => MyoInstance;
-    requestBluetoothStrength: () => MyoInstance;
-    lock: () => MyoInstance;
-    unlock: (hold?: boolean) => MyoInstance;
-    zeroOrientation: () => MyoInstance;
-    on: (eventName: string, callback: (...args: any[]) => void) => string;
-    off: (eventName: string) => MyoInstance;
-    trigger: (eventName: string, ...args: any[]) => MyoInstance;
-  }
-
-  interface MyoStatic {
-    defaults: {
-      api_version: number;
-      socket_url: string;
-      app_id: string;
-    };
-    socket?: WebSocket;
-    lockingPolicy: string;
-    events: any[];
-    myos: MyoInstance[];
-    on: (eventName: string, callback: (...args: any[]) => void) => string;
-    off: (eventName: string) => MyoStatic;
-    connect: (appId?: string, socketLib?: any) => void;
-    disconnect: () => void;
-    trigger: (eventName: string, ...args: any[]) => MyoStatic;
-    onError: (error?: any) => void;
-    setLockingPolicy: (policy: string) => MyoStatic;
-  }
-}
-
-// Mendefinisikan Myo secara global dengan casting types untuk menghindari konflik
-declare global {
-  interface Window {
-    Myo: any; // Kembali ke any untuk menghindari error linter
-  }
-}
-
-type MyoEvent =
-  | "fist"
-  | "wave_in"
-  | "wave_out"
-  | "fingers_spread"
-  | "double_tap"
-  | "rest";
+import { MyoEvent, MyoInstance } from "Myo";
+import { useEffect, useRef, useState } from "react";
 
 interface MyoControllerProps {
   onGesture?: (gesture: MyoEvent, myo: MyoInstance) => void;
@@ -235,14 +173,13 @@ export function MyoController({
         }, 500);
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      script.onerror = (_e) => {
-        handleError(
-          new Error("Failed to load Myo.js script"),
-          "script_loading"
-        );
-        updateStatus("script_error");
-      };
+            script.onerror = () => {
+                handleError(
+                    new Error("Failed to load Myo.js script"),
+                    "script_loading"
+                );
+                updateStatus("script_error");
+            };
 
       document.body.appendChild(script);
       scriptAdded = true;
@@ -287,14 +224,14 @@ export function MyoController({
       return;
     }
 
-    try {
-      // Konfigurasi custom error handler untuk Myo
-      try {
-        // TypeScript mungkin menganggap ini tidak ada, tapi ini ada di library
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (window.Myo as any).onError = (error: any) => {
-          handleError(
-            new Error(
+        try {
+            // Konfigurasi custom error handler untuk Myo
+            try {
+                // TypeScript mungkin menganggap ini tidak ada, tapi ini ada di library
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                window.Myo.onError = (error: any) => {
+                    handleError(
+                        new Error(
                             "Myo Connect error: " +
                                 (error?.message || "Unknown error")
             ),
@@ -309,13 +246,12 @@ export function MyoController({
                 );
       }
 
-      // Ubah kebijakan penguncian agar tetap terbuka (tidak lock otomatis)
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (window.Myo as any).setLockingPolicy("none");
-      } catch (e) {
-        console.warn("Tidak dapat mengatur locking policy:", e);
-      }
+            // Ubah kebijakan penguncian agar tetap terbuka (tidak lock otomatis)
+            try {
+                window.Myo.setLockingPolicy("none");
+            } catch (e) {
+                console.warn("Tidak dapat mengatur locking policy:", e);
+            }
 
       // Hubungkan ke Myo Connect
       window.Myo.connect(appName);
@@ -334,13 +270,13 @@ export function MyoController({
         cleanupGestureListeners();
       });
 
-      // Mendeteksi ketika Myo terhubung
-      window.Myo.on("connected", function (this: MyoInstance) {
-        try {
-          console.log("Myo terhubung!", this.name);
-          setConnected(true);
-          setMyoInstance(this);
-          updateStatus("connected");
+            // Mendeteksi ketika Myo terhubung
+            window.Myo.on("connected", function () {
+                try {
+                    console.log("Myo terhubung!", this.name);
+                    setConnected(true);
+                    setMyoInstance(this);
+                    updateStatus("connected");
 
           // Daftarkan event listeners setelah terhubung
           registerEventListeners(this);
@@ -353,13 +289,11 @@ export function MyoController({
                 this.unlock(true);
                 console.log("Myo unlocked with hold=true");
 
-                // Getaran konfirmasi bahwa terhubung
-                setTimeout(() => {
-                  try {
-                    if (this.connected) {
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                            const socket = (window.Myo as any)
-                                                .socket;
+                                // Getaran konfirmasi bahwa terhubung
+                                setTimeout(() => {
+                                    try {
+                                        if (this.connected) {
+                                            const socket = window.Myo.socket;
                                             if (
                                                 socket?.readyState ===
                                                 WebSocket.OPEN
@@ -404,14 +338,14 @@ export function MyoController({
         }
       });
 
-      // Mendeteksi ketika Myo terputus
-      window.Myo.on("disconnected", function (this: MyoInstance) {
-        try {
-          console.log("Myo terputus!");
-          setConnected(false);
-          setMyoInstance(null);
-          updateStatus("disconnected");
-          cleanupGestureListeners();
+            // Mendeteksi ketika Myo terputus
+            window.Myo.on("disconnected", function () {
+                try {
+                    console.log("Myo terputus!");
+                    setConnected(false);
+                    setMyoInstance(null);
+                    updateStatus("disconnected");
+                    cleanupGestureListeners();
 
           // Panggil callback onDisconnect jika disediakan
           onDisconnect?.();
@@ -420,16 +354,15 @@ export function MyoController({
         }
       });
 
-      // Deteksi sinkronisasi dengan lengan
-      window.Myo.on(
-        "arm_synced",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        function (this: MyoInstance, data: any) {
-          try {
-            console.log(
-                `Myo tersinkronisasi dengan ${data.arm} arm`
-            );
-            updateStatus("synced");
+            // Deteksi sinkronisasi dengan lengan
+            window.Myo.on(
+                "arm_synced",
+                function (data) {
+                    try {
+                        console.log(
+                            `Myo tersinkronisasi dengan ${data.arm} arm`
+                        );
+                        updateStatus("synced");
 
             // Unlock myo kembali setelah sync
             try {
@@ -446,7 +379,7 @@ export function MyoController({
         }
       );
 
-      window.Myo.on("arm_unsynced", function (this: MyoInstance) {
+      window.Myo.on("arm_unsynced", function () {
         try {
           console.log("Myo tidak tersinkronisasi");
           updateStatus("unsynced");
@@ -474,22 +407,18 @@ export function MyoController({
         // Bersihkan gesture listeners
         cleanupGestureListeners();
 
-        // Coba putuskan koneksi jika masih tersambung
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const myoAny = window.Myo as any;
-          if (
-              myoAny.socket &&
-              myoAny.socket.readyState === WebSocket.OPEN
-          ) {
-          if (typeof myoAny.disconnect === "function") {
-            myoAny.disconnect();
-          }
+                // Coba putuskan koneksi jika masih tersambung
+                if (
+                    window.Myo.socket &&
+                    window.Myo.socket.readyState === WebSocket.OPEN
+                ) {
+                    window.Myo.disconnect();
+                }
+            } catch (error) {
+                console.error("Error during Myo cleanup:", error);
+            }
         }
-      } catch (error) {
-        console.error("Error during Myo cleanup:", error);
-      }
-    }
-  };
+    };
 
   return null; // Komponen ini tidak memiliki UI, hanya logika
 }

@@ -2,45 +2,6 @@
 
 import { useEffect, useRef } from "react";
 
-// Tipe untuk callback events
-type MyoCallback<T = unknown> = (data: T) => void;
-
-// Definisi tipe untuk Myo
-interface MyoInstance {
-    id: number;
-    name?: string;
-    macAddress?: string;
-    streamEMG: (enabled: boolean) => void;
-    vibrate: (intensity: "light" | "medium" | "heavy" | "short") => void;
-    unlock: (hold?: boolean) => void;
-    lock: () => void;
-    zeroOrientation: () => void;
-    on: <T>(eventName: string, callback: MyoCallback<T>) => string;
-    off: (eventName: string, handlerId?: string) => void;
-    requestBatteryLevel: () => void;
-    requestBluetoothStrength: () => void;
-    synced: boolean;
-    arm?: string;
-    direction?: string;
-    isConnected: boolean;
-    connectIndex?: number;
-    batteryLevel?: number;
-}
-
-interface MyoStatic {
-    connect: (appId: string, options?: { timeOut?: number }) => void;
-    on: <T>(eventName: string, callback: MyoCallback<T>) => string;
-    off: (eventName: string, handlerId?: string) => void;
-    myos: MyoInstance[];
-    get: (id: number | string) => MyoInstance;
-}
-
-declare global {
-    interface Window {
-        Myo: MyoStatic;
-    }
-}
-
 // Komponen untuk mendeteksi dan log semua gerakan Myo ke konsol
 export function MyoConsoleLogger() {
     // Referensi untuk interval timer
@@ -104,7 +65,7 @@ export function MyoConsoleLogger() {
 
         window.Myo.myos.forEach((myo, index) => {
             console.log(`\n---- Perangkat #${index + 1} ----`);
-            console.log(`ID: ${myo.id || "tidak diketahui"}`);
+            // console.log(`ID: ${myo.id || "tidak diketahui"}`);
             console.log(`Nama: ${myo.name || "tidak diketahui"}`);
             console.log(`Alamat MAC: ${myo.macAddress || "tidak diketahui"}`);
             console.log(
@@ -118,7 +79,7 @@ export function MyoConsoleLogger() {
             console.log(`Arah: ${myo.direction || "belum terpasang"}`);
             console.log(
                 `Status koneksi: ${
-                    myo.isConnected ? "🟢 Terhubung" : "🔴 Terputus"
+                    myo.connected ? "🟢 Terhubung" : "🔴 Terputus"
                 }`
             );
             console.log(
@@ -221,7 +182,7 @@ export function MyoConsoleLogger() {
         });
 
         // Log saat pemasangan dengan lengan (synced)
-        window.Myo.on<{ arm: string; x_direction: string }>(
+        window.Myo.on(
             "arm_synced",
             (data) => {
                 console.log(
@@ -240,14 +201,14 @@ export function MyoConsoleLogger() {
         });
 
         // Log data baterai
-        window.Myo.on<{ battery_level: number }>("battery_level", (data) => {
-            console.log(`🔋 Level baterai Myo: ${data.battery_level}%`);
+        window.Myo.on("battery_level", (batteryLevel) => {
+            console.log(`🔋 Level baterai Myo: ${batteryLevel}%`);
             // Tampilkan detail perangkat yang diperbarui
             setTimeout(logMyoDetails, 500);
         });
 
         // Log kekuatan bluetooth
-        window.Myo.on<{ rssi: number; bluetooth_strength: number }>(
+        window.Myo.on(
             "rssi",
             (data) => {
                 console.log(
@@ -278,9 +239,8 @@ export function MyoConsoleLogger() {
                         window.Myo.myos.forEach((myo) => {
                             try {
                                 if (typeof myo.vibrate === "function") {
-                                    myo.vibrate("light");
+                                    myo.vibrate("short");
                                 }
-                                // eslint-disable-next-line @typescript-eslint/no-empty-function
                             } catch {
                                 // Kesalahan per perangkat diabaikan
                             }
@@ -296,7 +256,7 @@ export function MyoConsoleLogger() {
         });
 
         // Log semua data pose untuk debugging
-        window.Myo.on<string>("pose", (pose) => {
+        window.Myo.on("pose", (_, pose) => {
             console.log(`Pose terdeteksi: ${pose}`);
         });
     };
