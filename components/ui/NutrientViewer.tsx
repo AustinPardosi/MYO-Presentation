@@ -66,7 +66,7 @@ export const NutrientViewer = React.forwardRef<
     );
     const [myoConnected, setMyoConnected] = React.useState(false);
     const [unlocked, setUnlocked] = React.useState(false);
-    const [debugInfo, setDebugInfo] = React.useState(""); // State untuk debug info
+    const [debugInfo, setDebugInfo] = React.useState("");
     const [pdfInitialized, setPdfInitialized] = React.useState(false);
 
     // Ref untuk status unlocked agar selalu akses nilai terbaru
@@ -78,6 +78,7 @@ export const NutrientViewer = React.forwardRef<
     // Ref untuk menyimpan waktu terakhir gesture diproses
     const lastGestureTimeRef = React.useRef<number>(0);
 
+    // Fungsi untuk toggle fullscreen
     const toggleFullscreen = async () => {
         if (document.fullscreenElement) {
             document.exitFullscreen();
@@ -86,6 +87,7 @@ export const NutrientViewer = React.forwardRef<
         }
     };
 
+    // Fungsi untuk mengubah halaman
     const setCurrentPage = (i: number) => {
         if (
             viewerRef.current &&
@@ -98,6 +100,7 @@ export const NutrientViewer = React.forwardRef<
         }
     };
 
+    // Ekspos fungsi ke komponen parent
     React.useImperativeHandle(ref, () => ({
         toggleFullscreen,
         setCurrentPage,
@@ -123,7 +126,6 @@ export const NutrientViewer = React.forwardRef<
 
         // Jika mengunci, hapus timeout untuk menghindari race condition
         if (!value && autoLockTimeoutRef.current) {
-            console.log("Clearing existing auto-lock timeout");
             clearTimeout(autoLockTimeoutRef.current);
             autoLockTimeoutRef.current = null;
         }
@@ -133,8 +135,6 @@ export const NutrientViewer = React.forwardRef<
 
         // Jika unlock, atur timer auto-lock baru
         if (value) {
-            console.log("Setting new 30s auto-lock timer");
-
             // Clear existing timeout if any
             if (autoLockTimeoutRef.current) {
                 clearTimeout(autoLockTimeoutRef.current);
@@ -142,7 +142,6 @@ export const NutrientViewer = React.forwardRef<
 
             // Set new timeout
             autoLockTimeoutRef.current = setTimeout(() => {
-                console.log("Auto-lock triggered after 30s");
                 setUnlocked(false);
                 // Pastikan ref juga diupdate saat auto-lock
                 unlockedRef.current = false;
@@ -158,9 +157,8 @@ export const NutrientViewer = React.forwardRef<
         }
     };
 
-    // Debug info update
+    // Debug info update (simpel)
     const updateDebugInfo = (info: string) => {
-        console.log("Debug:", info);
         setDebugInfo(`${new Date().toLocaleTimeString()}: ${info}`);
     };
 
@@ -223,70 +221,17 @@ export const NutrientViewer = React.forwardRef<
         }
     }, [unlocked]);
 
-    // Helper function untuk debugging status API Nutrient
-    const debugNutrientAPI = () => {
-        if (!viewerRef.current) return "viewerRef.current is null";
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const instance = viewerRef.current as any;
-        const methods: string[] = [];
-
-        // Check methods existence
-        if (typeof instance.goToPage === "function") methods.push("goToPage");
-        if (typeof instance.setPageIndex === "function")
-            methods.push("setPageIndex");
-        if (typeof instance.dispatchKeyEvent === "function")
-            methods.push("dispatchKeyEvent");
-
-        // Get current page
-        const currentPage = viewerRef.current.viewState.currentPageIndex;
-
-        // Get total pages
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const viewStateAny = viewerRef.current.viewState as any;
-        const totalPages =
-            viewStateAny.totalPageCount ||
-            viewStateAny.pageCount ||
-            viewStateAny.documentPageCount ||
-            "unknown";
-
-        return `Current page: ${currentPage}, Total: ${totalPages}, Methods: ${methods.join(
-            ", "
-        )}`;
-    };
-
     // Handle Myo gestures for presentation control
     const handleMyoGesture = (gesture: MyoGesture, myo: MyoInstance) => {
         if (!viewerRef.current) return;
 
-        // Log semua gesture yang terdeteksi untuk debugging dengan lebih detil
-        toast.info(`Gesture terdeteksi: ${gestureNames[gesture]}`, {
-            id: "gesture-debug",
-            duration: 1000,
-            style: {
-                fontSize: "14px",
-                backgroundColor: "rgba(0, 0, 0, 0.7)",
-                color: "#a2e9ff",
-            },
-        });
-
-        // Debug Nutrient API untuk menulis ke console informasi yang berguna
-        console.log("Nutrient API Debug:", debugNutrientAPI());
-
-        console.log(
-            `Debug - Gesture: ${gesture}, Unlocked: ${unlockedRef.current}, Myo.locked: ${myo.locked}`
-        );
+        // Log gesture yang terdeteksi
         updateDebugInfo(
-            `Gesture: ${gesture}, Unlocked: ${unlockedRef.current}, Myo.locked: ${myo.locked}`
+            `Gesture: ${gesture}, Unlocked: ${unlockedRef.current}`
         );
 
         // Double tap untuk unlock
         if (gesture === "double_tap") {
-            console.log("Double tap terdeteksi - Mengubah unlocked ke true");
-            updateDebugInfo(
-                "Double tap terdeteksi - Mengubah unlocked ke true"
-            );
-
             // Set unlocked dengan fungsi baru
             setUnlockedMode(true);
 
@@ -294,11 +239,8 @@ export const NutrientViewer = React.forwardRef<
             if (myo.locked) {
                 try {
                     myo.unlock(true);
-                    console.log("Myo hardware unlocked via double tap");
-                    updateDebugInfo("Myo hardware unlocked");
                 } catch (error) {
                     console.error("Error unlocking Myo:", error);
-                    updateDebugInfo("Error unlocking Myo: " + String(error));
                 }
             }
 
@@ -309,30 +251,11 @@ export const NutrientViewer = React.forwardRef<
             return;
         }
 
-        // Rate limiting untuk gesture processing
-        const currentTime = Date.now();
-        // Variabel untuk digunakan jika rate limiting diaktifkan kembali
-        // const timeSinceLastGesture = currentTime - lastGestureTimeRef.current;
-
-        // Pastikan tidak memproses gesture terlalu sering (min 300ms antara gesture)
-        // if (timeSinceLastGesture < 300) {
-        //     console.log(
-        //         `Gesture ${gesture} ditolak - terlalu cepat (${timeSinceLastGesture}ms)`
-        //     );
-        //     return;
-        // }
-
         // Update waktu terakhir gesture
-        lastGestureTimeRef.current = currentTime;
+        lastGestureTimeRef.current = Date.now();
 
         // Hanya proses gesture lain jika sudah unlocked
         if (!unlockedRef.current) {
-            console.log(
-                `Gesture ${gesture} ditolak - Myo masih terkunci (unlocked ref: ${unlockedRef.current})`
-            );
-            updateDebugInfo(
-                `Gesture ditolak - Myo masih terkunci (locked: ${myo.locked})`
-            );
             toast.warning("Lakukan Double Tap terlebih dahulu untuk unlock", {
                 id: "unlock-warning",
                 style: {
@@ -346,31 +269,18 @@ export const NutrientViewer = React.forwardRef<
             return;
         }
 
-        // Log jika kode mencapai titik ini (artinya unlocked adalah true)
-        console.log(
-            `Processing gesture ${gesture} because unlocked=${unlockedRef.current}`
-        );
-
         // Handle gesture berdasarkan jenisnya
         switch (gesture) {
             case "wave_in": {
                 if (viewerRef.current) {
                     const currentPage =
                         viewerRef.current.viewState.currentPageIndex;
-                    console.log(
-                        `Wave In - Attempting to go to page ${
-                            currentPage + 1
-                        } from ${currentPage}`
-                    );
 
                     // Coba setCurrentPage normal
                     setCurrentPage(currentPage + 1);
 
                     // Jika dalam mode fullscreen, tambahkan simulator keyboard sebagai backup
                     if (document.fullscreenElement) {
-                        console.log(
-                            "In fullscreen mode - using keyboard simulation for ArrowRight"
-                        );
                         // Simulasi key press untuk ArrowRight
                         try {
                             const event = new KeyboardEvent("keydown", {
@@ -408,20 +318,12 @@ export const NutrientViewer = React.forwardRef<
                 if (viewerRef.current) {
                     const currentPage =
                         viewerRef.current.viewState.currentPageIndex;
-                    console.log(
-                        `Wave Out - Attempting to go to page ${
-                            currentPage - 1
-                        } from ${currentPage}`
-                    );
 
                     // Coba setCurrentPage normal
                     setCurrentPage(currentPage - 1);
 
                     // Jika dalam mode fullscreen, tambahkan simulator keyboard sebagai backup
                     if (document.fullscreenElement) {
-                        console.log(
-                            "In fullscreen mode - using keyboard simulation for ArrowLeft"
-                        );
                         // Simulasi key press untuk ArrowLeft
                         try {
                             const event = new KeyboardEvent("keydown", {
@@ -455,8 +357,7 @@ export const NutrientViewer = React.forwardRef<
                 }
                 break;
             }
-            case "fist": // Toggle fullscreen
-                console.log("Processing fist gesture - simulating Ctrl+M");
+            case "fist": // Simulasi Ctrl+M untuk toggle fullscreen
                 try {
                     // Dapatkan status sebelum simulasi
                     const isEnteringFullscreen = !document.fullscreenElement;
@@ -472,15 +373,12 @@ export const NutrientViewer = React.forwardRef<
                     });
                     document.dispatchEvent(event);
 
-                    // Tambahkan delay untuk memastikan getaran dan toast muncul setelah shortcut diproses
+                    // Tambahkan delay untuk feedback
                     setTimeout(() => {
                         handleVibrationAndToast(
                             gesture,
                             myo,
                             isEnteringFullscreen
-                        );
-                        console.log(
-                            "Successfully processed fist gesture via Ctrl+M simulation"
                         );
                     }, 500);
                 } catch (err) {
@@ -488,9 +386,6 @@ export const NutrientViewer = React.forwardRef<
                 }
                 break;
             case "fingers_spread": // Show all slides (thumbnails)
-                console.log(
-                    "Processing fingers_spread gesture - toggle thumbnails"
-                );
                 try {
                     viewerRef.current.setViewState((state) => {
                         const showingSidebar = !state.sidebarMode;
@@ -498,9 +393,6 @@ export const NutrientViewer = React.forwardRef<
                             ? null
                             : "THUMBNAILS";
                         handleVibrationAndToast(gesture, myo, showingSidebar);
-                        console.log(
-                            "Successfully processed fingers_spread gesture"
-                        );
                         return state.set("sidebarMode", newSidebarMode);
                     });
                 } catch (err) {
@@ -658,9 +550,14 @@ export const NutrientViewer = React.forwardRef<
                     toast.info(
                         "Lakukan Double Tap untuk unlock gesture kontrol"
                     );
-                } catch (e) {
-                    console.error("Error loading document:", e);
-                    toast.error("Gagal memuat dokumen: " + e.message);
+                } catch (error) {
+                    console.error("Error loading document:", error);
+                    // Perbaikan linter error dengan checking tipe
+                    if (error instanceof Error) {
+                        toast.error("Gagal memuat dokumen: " + error.message);
+                    } else {
+                        toast.error("Gagal memuat dokumen");
+                    }
                 }
             }
 
@@ -668,15 +565,15 @@ export const NutrientViewer = React.forwardRef<
                 if (container) {
                     try {
                         pspdfKit.unload(container);
-                    } catch (e) {
-                        // Silence errors on cleanup
+                    } catch {
+                        // Silence errors on cleanup (tidak perlu variabel e)
                     }
                 }
             };
         })();
 
         return cleanup;
-    }, [fileBuffer, myoConnected, unlocked, pdfInitialized]);
+    }, [fileBuffer, pdfInitialized]); // Hapus myoConnected dan unlocked dari dependencies agar tidak re-mount
 
     return (
         <>
@@ -780,28 +677,18 @@ export const NutrientViewer = React.forwardRef<
             </div>
             <MyoController
                 onGesture={(gesture, myo) => {
-                    console.log(
-                        `Raw gesture from Myo: ${gesture}, Unlocked state: ${unlockedRef.current}`
-                    );
                     updateDebugInfo(`Raw gesture: ${gesture}`);
 
                     // Always process double_tap immediately no matter what
                     if (gesture === "double_tap") {
-                        console.log(
-                            "Double tap detected - forwarding to handler"
-                        );
                         handleMyoGesture("double_tap", myo);
                         return;
                     }
 
                     // Filter hanya gesture yang diinginkan (kecuali 'rest')
                     if (gesture !== "rest") {
-                        // Check again for unlocked state before passing gesture
+                        // Check for unlocked state before passing gesture
                         if (unlockedRef.current) {
-                            console.log(
-                                `Forwarding ${gesture} gesture because unlocked=${unlockedRef.current}`
-                            );
-
                             // Hanya proses gesture lain jika dalam daftar
                             if (
                                 gesture === "fist" ||
@@ -812,9 +699,6 @@ export const NutrientViewer = React.forwardRef<
                                 handleMyoGesture(gesture, myo);
                             }
                         } else {
-                            console.log(
-                                `Skipping ${gesture} gesture because unlocked=${unlockedRef.current}`
-                            );
                             toast.warning(
                                 "Myo locked - Double Tap untuk unlock",
                                 {
