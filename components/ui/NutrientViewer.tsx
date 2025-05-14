@@ -285,15 +285,9 @@ export const NutrientViewer = React.forwardRef<
         switch (gesture) {
             case "wave_in": {
                 if (viewerRef.current) {
-                    const currentPage =
-                        viewerRef.current.viewState.currentPageIndex;
-
-                    // Coba setCurrentPage normal
-                    setCurrentPage(currentPage + 1);
-
-                    // Jika dalam mode fullscreen, tambahkan simulator keyboard sebagai backup
+                    // Gunakan salah satu metode saja, tidak keduanya
                     if (document.fullscreenElement) {
-                        // Simulasi key press untuk ArrowRight
+                        // Dalam mode fullscreen, gunakan keyboard simulation
                         try {
                             const event = new KeyboardEvent("keydown", {
                                 key: "ArrowRight",
@@ -319,6 +313,11 @@ export const NutrientViewer = React.forwardRef<
                                 err
                             );
                         }
+                    } else {
+                        // Di luar fullscreen, gunakan setCurrentPage
+                        const currentPage =
+                            viewerRef.current.viewState.currentPageIndex;
+                        setCurrentPage(currentPage + 1);
                     }
 
                     // Berikan feedback ke user
@@ -328,15 +327,9 @@ export const NutrientViewer = React.forwardRef<
             }
             case "wave_out": {
                 if (viewerRef.current) {
-                    const currentPage =
-                        viewerRef.current.viewState.currentPageIndex;
-
-                    // Coba setCurrentPage normal
-                    setCurrentPage(currentPage - 1);
-
-                    // Jika dalam mode fullscreen, tambahkan simulator keyboard sebagai backup
+                    // Gunakan salah satu metode saja, tidak keduanya
                     if (document.fullscreenElement) {
-                        // Simulasi key press untuk ArrowLeft
+                        // Dalam mode fullscreen, gunakan keyboard simulation
                         try {
                             const event = new KeyboardEvent("keydown", {
                                 key: "ArrowLeft",
@@ -362,6 +355,11 @@ export const NutrientViewer = React.forwardRef<
                                 err
                             );
                         }
+                    } else {
+                        // Di luar fullscreen, gunakan setCurrentPage
+                        const currentPage =
+                            viewerRef.current.viewState.currentPageIndex;
+                        setCurrentPage(currentPage - 1);
                     }
 
                     // Berikan feedback ke user
