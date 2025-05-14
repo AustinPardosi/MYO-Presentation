@@ -710,8 +710,8 @@ export const NutrientViewer = React.forwardRef<NutrientViewerRef, React.Componen
             <div
                 style={{
                     position: "fixed",
-                    top: "10px",
-                    right: "10px",
+                    bottom: "50px",
+                    left: "10px",
                     padding: "12px 15px",
                     background: unlocked
                         ? "rgba(0, 255, 0, 0.8)"

@@ -36,7 +36,6 @@ export default function Home() {
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [showOnboardingPresent, setShowOnboardingPresent] = useState(false);
 
-    const [showTutorial, setShowTutorial] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const viewerRef = useRef<NutrientViewerRef>(null);
     const router = useRouter();
@@ -160,7 +159,8 @@ export default function Home() {
             URL.revokeObjectURL(fileUrl);
         }
         setShowViewer(false);
-        router.push("/");
+        // router.push("/");
+        router.back();
 
         setSelectedFile(null);
         setFileUrl(null);
@@ -194,10 +194,6 @@ export default function Home() {
         if (nextStep) setOnboardingStep(nextStep);
         else setShowOnboarding(false);
      } // End onboarding
-
-    const toggleTutorial = () => {
-        setShowTutorial(!showTutorial);
-    };
 
     return (
         <>
@@ -259,7 +255,7 @@ export default function Home() {
                         {/* Tutorial Link */}
                         <div className="mt-4 text-sm">
                             <span>First time using Myo for presentation? </span>
-                            <Button variant="link" className="font-bold text-accent underline p-0" onClick={async () => {
+                            <Button variant="link" className="font-bold text-accent underline p-0 cursor-pointer" onClick={async () => {
                                 const response = await fetch("/TerraFarm.pptx");
                                 const blob = await response.blob();
                                 const file = new File([blob], "TerraFarm.pptx", { type: blob.type });
@@ -268,92 +264,7 @@ export default function Home() {
                             }}>
                                 See tutorial
                             </Button>
-                            <button
-                                onClick={toggleTutorial}
-                                className="font-bold text-accent underline"
-                            >
-                                See tutorial
-                            </button>
                         </div>
-
-                        {/* Tutorial Panel */}
-                        {showTutorial && (
-                            <div className="mt-6 p-6 bg-gray-800 rounded-lg max-w-[500px] text-left">
-                                <h3 className="text-xl font-bold mb-4">
-                                    Tutorial Menggunakan Myo untuk Presentasi
-                                </h3>
-                                <p className="mb-4">
-                                    Pastikan Anda telah menginstal{" "}
-                                    <a
-                                        href="https://support.getmyo.com/hc/en-us/articles/360018409792-Myo-Connect-for-Windows-and-Mac"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-accent underline"
-                                    >
-                                        Myo Connect
-                                    </a>{" "}
-                                    dan perangkat Myo Anda sudah terhubung.
-                                </p>
-
-                                <h4 className="text-lg font-bold mt-4 mb-2">
-                                    Gestur yang Didukung:
-                                </h4>
-                                <ul className="list-disc pl-6 space-y-2">
-                                    <li>
-                                        <strong>Wave In</strong> - Pindah ke
-                                        slide sebelumnya
-                                    </li>
-                                    <li>
-                                        <strong>Wave Out</strong> - Pindah ke
-                                        slide berikutnya
-                                    </li>
-                                    <li>
-                                        <strong>Fist</strong> -
-                                        Aktifkan/nonaktifkan mode layar penuh
-                                    </li>
-                                    <li>
-                                        <strong>Fingers Spread</strong> -
-                                        Tampilkan/sembunyikan thumbnail slide
-                                    </li>
-                                    <li>
-                                        <strong>Double Tap</strong> - Reset
-                                        tampilan (zoom dan sidebar)
-                                    </li>
-                                </ul>
-
-                                <h4 className="text-lg font-bold mt-4 mb-2">
-                                    Langkah Persiapan:
-                                </h4>
-                                <ol className="list-decimal pl-6 space-y-2">
-                                    <li>
-                                        Pastikan Myo Connect berjalan di
-                                        komputer Anda
-                                    </li>
-                                    <li>
-                                        Kenakan perangkat Myo pada lengan Anda
-                                    </li>
-                                    <li>
-                                        Lakukan gerakan sync (terentang lalu
-                                        mengepal)
-                                    </li>
-                                    <li>
-                                        Unggah file presentasi Anda di aplikasi
-                                        ini
-                                    </li>
-                                    <li>
-                                        Status koneksi Myo akan ditampilkan di
-                                        toolbar presentasi
-                                    </li>
-                                </ol>
-
-                                <Button
-                                    onClick={toggleTutorial}
-                                    className="mt-6 bg-primary text-white hover:bg-[#27592A]"
-                                >
-                                    Tutup Tutorial
-                                </Button>
-                            </div>
-                        )}
                     </div>
                 </div>
             ) : (
