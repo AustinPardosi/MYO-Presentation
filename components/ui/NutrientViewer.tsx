@@ -38,10 +38,10 @@ const gestureVibrations: Record<MyoGesture, VibrateIntensity> = {
 const gestureMessages: Record<MyoGesture, (isActive?: boolean) => string> = {
     wave_in: () => "Slide sebelumnya",
     wave_out: () => "Slide berikutnya",
-    fist: (isFullscreen) =>
-        isFullscreen
-            ? "Keluar dari mode layar penuh"
-            : "Masuk mode layar penuh",
+    fist: (isEnteringFullscreen) =>
+        isEnteringFullscreen
+            ? "Masuk mode layar penuh"
+            : "Keluar dari mode layar penuh",
     fingers_spread: (showSidebar) =>
         showSidebar ? "Membuka thumbnail" : "Menutup thumbnail",
     double_tap: (isUnlocked) =>
@@ -314,12 +314,12 @@ export const NutrientViewer = React.forwardRef<
         const timeSinceLastGesture = currentTime - lastGestureTimeRef.current;
 
         // Pastikan tidak memproses gesture terlalu sering (min 300ms antara gesture)
-        if (timeSinceLastGesture < 300) {
-            console.log(
-                `Gesture ${gesture} ditolak - terlalu cepat (${timeSinceLastGesture}ms)`
-            );
-            return;
-        }
+        // if (timeSinceLastGesture < 300) {
+        //     console.log(
+        //         `Gesture ${gesture} ditolak - terlalu cepat (${timeSinceLastGesture}ms)`
+        //     );
+        //     return;
+        // }
 
         // Update waktu terakhir gesture
         lastGestureTimeRef.current = currentTime;
