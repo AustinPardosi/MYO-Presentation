@@ -356,7 +356,50 @@ export const NutrientViewer = React.forwardRef<
                 if (viewerRef.current) {
                     const currentPage =
                         viewerRef.current.viewState.currentPageIndex;
+                    console.log(
+                        `Wave Out - Attempting to go to page ${
+                            currentPage + 1
+                        } from ${currentPage}`
+                    );
+
+                    // Coba setCurrentPage normal
                     setCurrentPage(currentPage + 1);
+
+                    // Jika dalam mode fullscreen, tambahkan simulator keyboard sebagai backup
+                    if (document.fullscreenElement) {
+                        console.log(
+                            "In fullscreen mode - using keyboard simulation for ArrowRight"
+                        );
+                        // Simulasi key press untuk ArrowRight
+                        try {
+                            const event = new KeyboardEvent("keydown", {
+                                key: "ArrowRight",
+                                bubbles: true,
+                                cancelable: true,
+                                keyCode: 39,
+                            });
+                            document.dispatchEvent(event);
+
+                            // Tambah delay untuk keyup
+                            setTimeout(() => {
+                                const upEvent = new KeyboardEvent("keyup", {
+                                    key: "ArrowRight",
+                                    bubbles: true,
+                                    cancelable: true,
+                                    keyCode: 39,
+                                });
+                                document.dispatchEvent(upEvent);
+                            }, 50);
+                        } catch (err) {
+                            console.error(
+                                "Error simulating keyboard event:",
+                                err
+                            );
+                        }
+                    }
+
+                    // Berikan feedback ke user
+                    handleVibrationAndToast(gesture, myo);
                 }
                 break;
             }
@@ -364,7 +407,50 @@ export const NutrientViewer = React.forwardRef<
                 if (viewerRef.current) {
                     const currentPage =
                         viewerRef.current.viewState.currentPageIndex;
+                    console.log(
+                        `Wave In - Attempting to go to page ${
+                            currentPage - 1
+                        } from ${currentPage}`
+                    );
+
+                    // Coba setCurrentPage normal
                     setCurrentPage(currentPage - 1);
+
+                    // Jika dalam mode fullscreen, tambahkan simulator keyboard sebagai backup
+                    if (document.fullscreenElement) {
+                        console.log(
+                            "In fullscreen mode - using keyboard simulation for ArrowLeft"
+                        );
+                        // Simulasi key press untuk ArrowLeft
+                        try {
+                            const event = new KeyboardEvent("keydown", {
+                                key: "ArrowLeft",
+                                bubbles: true,
+                                cancelable: true,
+                                keyCode: 37,
+                            });
+                            document.dispatchEvent(event);
+
+                            // Tambah delay untuk keyup
+                            setTimeout(() => {
+                                const upEvent = new KeyboardEvent("keyup", {
+                                    key: "ArrowLeft",
+                                    bubbles: true,
+                                    cancelable: true,
+                                    keyCode: 37,
+                                });
+                                document.dispatchEvent(upEvent);
+                            }, 50);
+                        } catch (err) {
+                            console.error(
+                                "Error simulating keyboard event:",
+                                err
+                            );
+                        }
+                    }
+
+                    // Berikan feedback ke user
+                    handleVibrationAndToast(gesture, myo);
                 }
                 break;
             }
@@ -373,8 +459,16 @@ export const NutrientViewer = React.forwardRef<
                 try {
                     const isEnteringFullscreen = !document.fullscreenElement;
                     toggleFullscreen();
-                    handleVibrationAndToast(gesture, myo, isEnteringFullscreen);
-                    console.log("Successfully processed fist gesture");
+
+                    // Tambahkan delay untuk memastikan status getaran dan toast muncul setelah fullscreen selesai
+                    setTimeout(() => {
+                        handleVibrationAndToast(
+                            gesture,
+                            myo,
+                            isEnteringFullscreen
+                        );
+                        console.log("Successfully processed fist gesture");
+                    }, 500);
                 } catch (err) {
                     console.error("Error processing fist gesture:", err);
                 }
