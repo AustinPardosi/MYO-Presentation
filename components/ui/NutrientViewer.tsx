@@ -152,9 +152,9 @@ export const NutrientViewer = React.forwardRef<
                         backgroundColor: "rgba(0, 0, 0, 0.8)",
                         color: "#ffbdbd",
                     },
-                    duration: 3000,
+                    duration: 300,
                 });
-            }, 30000);
+            }, 3000);
         }
     };
 
@@ -197,7 +197,7 @@ export const NutrientViewer = React.forwardRef<
                     backgroundColor: "rgba(0, 0, 0, 0.8)",
                     color: "white",
                 },
-                duration: 3000,
+                duration: 300,
             });
 
             // Cek apakah myo memiliki properti socket dan WebSocket sudah OPEN
@@ -352,12 +352,12 @@ export const NutrientViewer = React.forwardRef<
 
         // Handle gesture berdasarkan jenisnya
         switch (gesture) {
-            case "wave_out": {
+            case "wave_in": {
                 if (viewerRef.current) {
                     const currentPage =
                         viewerRef.current.viewState.currentPageIndex;
                     console.log(
-                        `Wave Out - Attempting to go to page ${
+                        `Wave In - Attempting to go to page ${
                             currentPage + 1
                         } from ${currentPage}`
                     );
@@ -403,12 +403,12 @@ export const NutrientViewer = React.forwardRef<
                 }
                 break;
             }
-            case "wave_in": {
+            case "wave_out": {
                 if (viewerRef.current) {
                     const currentPage =
                         viewerRef.current.viewState.currentPageIndex;
                     console.log(
-                        `Wave In - Attempting to go to page ${
+                        `Wave Out - Attempting to go to page ${
                             currentPage - 1
                         } from ${currentPage}`
                     );
