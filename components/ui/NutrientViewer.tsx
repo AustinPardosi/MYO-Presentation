@@ -55,12 +55,10 @@ export interface NutrientViewerRef {
     previousPage: () => void;
 }
 
-export const NutrientViewer = React.forwardRef<NutrientViewerRef, React.ComponentProps<"div"> & { file: File; overlay?: React.ReactNode; }>(function NutrientViewer({
-    file,
-    className,
-    overlay,
-    ...props
-}, ref) {
+export const NutrientViewer = React.forwardRef<
+    NutrientViewerRef,
+    React.ComponentProps<"div"> & { file: File; overlay?: React.ReactNode }
+>(function NutrientViewer({ file, className, overlay, ...props }, ref) {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const viewerRef = React.useRef<NutrientType.Instance>(null);
     const [fileBuffer, setFileBuffer] = React.useState<ArrayBuffer | null>(
@@ -85,18 +83,26 @@ export const NutrientViewer = React.forwardRef<NutrientViewerRef, React.Componen
     };
 
     const setCurrentPage = (i: number) => {
-        if (viewerRef.current && 0 <= i && i < viewerRef.current?.totalPageCount) {
-            viewerRef.current?.setViewState(state => state
-                .set("currentPageIndex", i)
+        if (
+            viewerRef.current &&
+            0 <= i &&
+            i < viewerRef.current?.totalPageCount
+        ) {
+            viewerRef.current?.setViewState((state) =>
+                state.set("currentPageIndex", i)
             );
         }
-    }
+    };
 
     React.useImperativeHandle(ref, () => ({
         toggleFullscreen,
         setCurrentPage,
-        nextPage: () => viewerRef.current && setCurrentPage(viewerRef.current.viewState.currentPageIndex + 1),
-        previousPage: () => viewerRef.current && setCurrentPage(viewerRef.current.viewState.currentPageIndex - 1),
+        nextPage: () =>
+            viewerRef.current &&
+            setCurrentPage(viewerRef.current.viewState.currentPageIndex + 1),
+        previousPage: () =>
+            viewerRef.current &&
+            setCurrentPage(viewerRef.current.viewState.currentPageIndex - 1),
     }));
 
     // Fungsi untuk mengatur mode unlocked dengan debounce protection
@@ -202,104 +208,6 @@ export const NutrientViewer = React.forwardRef<NutrientViewerRef, React.Componen
             });
         }
     }, [unlocked]);
-
-    // Helper untuk mengirim keyboard event
-    const sendKeyboardEvent = (key: string) => {
-        if (!containerRef.current) return;
-
-        try {
-            console.log(`Sending keyboard event: ${key}`);
-
-            // Fokuskan container terlebih dahulu
-            containerRef.current.focus();
-
-            // Kirim keydown event
-            const event = new KeyboardEvent("keydown", {
-                key,
-                bubbles: true,
-                cancelable: true,
-            });
-            containerRef.current.dispatchEvent(event);
-
-            // Kirim keyup setelah jeda singkat
-            setTimeout(() => {
-                const upEvent = new KeyboardEvent("keyup", {
-                    key,
-                    bubbles: true,
-                    cancelable: true,
-                });
-                containerRef.current?.dispatchEvent(upEvent);
-            }, 50);
-
-            console.log(`Keyboard event ${key} sent`);
-        } catch (error) {
-            console.error("Error sending keyboard event:", error);
-        }
-    };
-
-    // Fungsi helper untuk berpindah slide
-    const goToPage = (page: number) => {
-        console.log(`Trying all methods to go to page: ${page}`);
-
-        if (!viewerRef.current) {
-            console.error("viewerRef.current is null - cannot navigate");
-            return;
-        }
-
-        try {
-            // Metode 1: Dengan set langsung
-            const newViewState = viewerRef.current.viewState.set(
-                "currentPageIndex",
-                page
-            );
-            viewerRef.current.setViewState(newViewState);
-            console.log("Method 1 executed");
-
-            // Metode 2: Mencoba melalui metode API Nutrient yang mungkin tersedia
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const instance = viewerRef.current as any;
-            if (typeof instance.goToPage === "function") {
-                instance.goToPage(page);
-                console.log("Method 2 executed");
-            }
-
-            // Metode 3: Mencoba menggunakan API lain
-            if (typeof instance.setPageIndex === "function") {
-                instance.setPageIndex(page);
-                console.log("Method 3 executed");
-            }
-
-            // Metode 4: Mencoba mensimulasikan keypress (Nutrient mendukung keyboard navigation)
-            if (typeof instance.dispatchKeyEvent === "function") {
-                const key =
-                    page > viewerRef.current.viewState.currentPageIndex
-                        ? "ArrowRight"
-                        : "ArrowLeft";
-                instance.dispatchKeyEvent({ key });
-                console.log("Method 4 executed");
-            }
-
-            // Metode 5: Mencoba simulator keyboard event
-            const currentPage = viewerRef.current.viewState.currentPageIndex;
-            if (page > currentPage) {
-                sendKeyboardEvent("ArrowRight");
-            } else if (page < currentPage) {
-                sendKeyboardEvent("ArrowLeft");
-            }
-            console.log("Method 5 executed");
-        } catch (error) {
-            console.error("Error in goToPage helper:", error);
-
-            // Fallback - coba simulator keyboard tanpa pengecekan error
-            const currentPage =
-                viewerRef.current.viewState.currentPageIndex || 0;
-            if (page > currentPage) {
-                sendKeyboardEvent("ArrowRight");
-            } else if (page < currentPage) {
-                sendKeyboardEvent("ArrowLeft");
-            }
-        }
-    };
 
     // Helper function untuk debugging status API Nutrient
     const debugNutrientAPI = () => {
@@ -430,90 +338,22 @@ export const NutrientViewer = React.forwardRef<NutrientViewerRef, React.Componen
 
         // Handle gesture berdasarkan jenisnya
         switch (gesture) {
-            case "wave_out": // Wave Left - Next slide (sesuai user task)
-                console.log("Processing wave_out gesture - next slide");
-                try {
-                    // Debugging untuk memeriksa status viewerRef
-                    console.log(
-                        "viewerRef.current exists:",
-                        !!viewerRef.current
-                    );
-
-                    if (viewerRef.current) {
-                        const currentPage =
-                            viewerRef.current.viewState.currentPageIndex;
-                        console.log("Current page before change:", currentPage);
-
-                        // Hitung total halaman dengan metode yang lebih andal
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const viewStateAny = viewerRef.current.viewState as any;
-                        const totalPages =
-                            viewStateAny.totalPageCount ||
-                            viewStateAny.pageCount ||
-                            viewStateAny.documentPageCount ||
-                            100; // Default tinggi untuk menghindari masalah
-
-                        console.log("Total pages detected:", totalPages);
-
-                        // Hitung halaman baru
-                        const newPage = Math.min(
-                            totalPages - 1,
-                            currentPage + 1
-                        );
-                        console.log(
-                            `Trying to move from page ${currentPage} to ${newPage}`
-                        );
-
-                        // Gunakan helper untuk mencoba berbagai metode navigasi
-                        goToPage(newPage);
-                    } else {
-                        console.error(
-                            "viewerRef.current is null - cannot navigate"
-                        );
-                    }
-
-                    handleVibrationAndToast(gesture, myo);
-                    console.log("Successfully processed wave_out gesture");
-                } catch (err) {
-                    console.error("Error processing wave_out gesture:", err);
+            case "wave_out": {
+                if (viewerRef.current) {
+                    const currentPage =
+                        viewerRef.current.viewState.currentPageIndex;
+                    setCurrentPage(currentPage + 1);
                 }
                 break;
-
-            case "wave_in": // Wave Right - Previous slide (sesuai user task)
-                console.log("Processing wave_in gesture - previous slide");
-                try {
-                    // Debugging untuk memeriksa status viewerRef
-                    console.log(
-                        "viewerRef.current exists:",
-                        !!viewerRef.current
-                    );
-
-                    if (viewerRef.current) {
-                        const currentPage =
-                            viewerRef.current.viewState.currentPageIndex;
-                        console.log("Current page before change:", currentPage);
-
-                        // Hitung halaman baru
-                        const newPage = Math.max(0, currentPage - 1);
-                        console.log(
-                            `Trying to move from page ${currentPage} to ${newPage}`
-                        );
-
-                        // Gunakan helper untuk mencoba berbagai metode navigasi
-                        goToPage(newPage);
-                    } else {
-                        console.error(
-                            "viewerRef.current is null - cannot navigate"
-                        );
-                    }
-
-                    handleVibrationAndToast(gesture, myo);
-                    console.log("Successfully processed wave_in gesture");
-                } catch (err) {
-                    console.error("Error processing wave_in gesture:", err);
+            }
+            case "wave_in": {
+                if (viewerRef.current) {
+                    const currentPage =
+                        viewerRef.current.viewState.currentPageIndex;
+                    setCurrentPage(currentPage - 1);
                 }
                 break;
-
+            }
             case "fist": // Toggle fullscreen
                 console.log("Processing fist gesture - toggle fullscreen");
                 try {
@@ -525,7 +365,6 @@ export const NutrientViewer = React.forwardRef<NutrientViewerRef, React.Componen
                     console.error("Error processing fist gesture:", err);
                 }
                 break;
-
             case "fingers_spread": // Show all slides (thumbnails)
                 console.log(
                     "Processing fingers_spread gesture - toggle thumbnails"
@@ -857,13 +696,11 @@ export const NutrientViewer = React.forwardRef<NutrientViewerRef, React.Componen
                 onStatusChange={handleMyoStatusChange}
                 appName="myo.presentation.app"
             />
-          <div ref={containerRef} className={className} {...props} > 
+            <div ref={containerRef} className={className} {...props}>
                 {overlay && (
-                  <div className="absolute inset-0 z-50">
-                    {overlay}
-                  </div>
+                    <div className="absolute inset-0 z-50">{overlay}</div>
                 )}
-          </div>
+            </div>
         </>
     );
 });
