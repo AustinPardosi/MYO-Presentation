@@ -84,13 +84,54 @@ export const NutrientViewer = React.forwardRef<
     // Ref untuk menyimpan waktu terakhir gesture diproses
     const lastGestureTimeRef = React.useRef<number>(0);
 
-    // Fungsi untuk toggle fullscreen
-    const toggleFullscreen = async () => {
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
-        } else {
-            await containerRef.current?.requestFullscreen();
+    // Ref untuk melacak gerakan yang sudah diproses sejak unlock terakhir
+    const processedGesturesRef = React.useRef<Set<MyoGesture>>(new Set());
+
+    // Helper untuk simulasi shortcut keyboard
+    const simulateKeyboardShortcut = (
+        key: string,
+        keyCode: number,
+        modifiers: {
+            ctrlKey?: boolean;
+            altKey?: boolean;
+            shiftKey?: boolean;
+        } = {}
+    ) => {
+        try {
+            // Simulasi keydown event
+            const event = new KeyboardEvent("keydown", {
+                key,
+                code: `Key${key.toUpperCase()}`,
+                keyCode,
+                ...modifiers,
+                bubbles: true,
+                cancelable: true,
+            });
+            document.dispatchEvent(event);
+
+            // Simulasi keyup dengan delay kecil
+            setTimeout(() => {
+                const upEvent = new KeyboardEvent("keyup", {
+                    key,
+                    code: `Key${key.toUpperCase()}`,
+                    keyCode,
+                    ...modifiers,
+                    bubbles: true,
+                    cancelable: true,
+                });
+                document.dispatchEvent(upEvent);
+            }, 50);
+
+            return true;
+        } catch (err) {
+            console.error(`Error simulating keyboard shortcut ${key}:`, err);
+            return false;
         }
+    };
+
+    // Fungsi untuk toggle fullscreen menggunakan simulasi Ctrl+M
+    const toggleFullscreen = async () => {
+        simulateKeyboardShortcut("m", 77, { ctrlKey: true });
     };
 
     // Fungsi untuk mengubah halaman
@@ -135,6 +176,9 @@ export const NutrientViewer = React.forwardRef<
 
         // Update ref juga saat state diubah langsung
         unlockedRef.current = value;
+
+        // Reset set gerakan yang sudah diproses
+        processedGesturesRef.current.clear();
 
         // Jika mengunci, hapus timeout untuk menghindari race condition
         if (!value && autoLockTimeoutRef.current) {
@@ -260,6 +304,9 @@ export const NutrientViewer = React.forwardRef<
 
             // Catat waktu terakhir gesture diproses
             lastGestureTimeRef.current = Date.now();
+
+            // Reset set gerakan yang sudah diproses
+            processedGesturesRef.current.clear();
             return;
         }
 
@@ -281,6 +328,22 @@ export const NutrientViewer = React.forwardRef<
             return;
         }
 
+        // Cek apakah gerakan sudah diproses sejak unlock terakhir
+        if (processedGesturesRef.current.has(gesture)) {
+            toast.info(
+                `Gesture ${gestureNames[gesture]} sudah digunakan, double tap untuk reset`,
+                {
+                    style: {
+                        fontWeight: "bold",
+                        backgroundColor: "rgba(0, 0, 0, 0.8)",
+                        color: "#a2e9ff",
+                    },
+                    duration: 1000,
+                }
+            );
+            return;
+        }
+
         // Handle gesture berdasarkan jenisnya
         switch (gesture) {
             case "wave_in": {
@@ -288,31 +351,7 @@ export const NutrientViewer = React.forwardRef<
                     // Gunakan salah satu metode saja, tidak keduanya
                     if (document.fullscreenElement) {
                         // Dalam mode fullscreen, gunakan keyboard simulation
-                        try {
-                            const event = new KeyboardEvent("keydown", {
-                                key: "ArrowRight",
-                                bubbles: true,
-                                cancelable: true,
-                                keyCode: 39,
-                            });
-                            document.dispatchEvent(event);
-
-                            // Tambah delay untuk keyup
-                            setTimeout(() => {
-                                const upEvent = new KeyboardEvent("keyup", {
-                                    key: "ArrowRight",
-                                    bubbles: true,
-                                    cancelable: true,
-                                    keyCode: 39,
-                                });
-                                document.dispatchEvent(upEvent);
-                            }, 50);
-                        } catch (err) {
-                            console.error(
-                                "Error simulating keyboard event:",
-                                err
-                            );
-                        }
+                        simulateKeyboardShortcut("ArrowRight", 39);
                     } else {
                         // Di luar fullscreen, gunakan setCurrentPage
                         const currentPage =
@@ -322,6 +361,9 @@ export const NutrientViewer = React.forwardRef<
 
                     // Berikan feedback ke user
                     handleVibrationAndToast(gesture, myo);
+
+                    // Tandai gesture ini sudah diproses
+                    processedGesturesRef.current.add(gesture);
                 }
                 break;
             }
@@ -330,31 +372,7 @@ export const NutrientViewer = React.forwardRef<
                     // Gunakan salah satu metode saja, tidak keduanya
                     if (document.fullscreenElement) {
                         // Dalam mode fullscreen, gunakan keyboard simulation
-                        try {
-                            const event = new KeyboardEvent("keydown", {
-                                key: "ArrowLeft",
-                                bubbles: true,
-                                cancelable: true,
-                                keyCode: 37,
-                            });
-                            document.dispatchEvent(event);
-
-                            // Tambah delay untuk keyup
-                            setTimeout(() => {
-                                const upEvent = new KeyboardEvent("keyup", {
-                                    key: "ArrowLeft",
-                                    bubbles: true,
-                                    cancelable: true,
-                                    keyCode: 37,
-                                });
-                                document.dispatchEvent(upEvent);
-                            }, 50);
-                        } catch (err) {
-                            console.error(
-                                "Error simulating keyboard event:",
-                                err
-                            );
-                        }
+                        simulateKeyboardShortcut("ArrowLeft", 37);
                     } else {
                         // Di luar fullscreen, gunakan setCurrentPage
                         const currentPage =
@@ -364,6 +382,9 @@ export const NutrientViewer = React.forwardRef<
 
                     // Berikan feedback ke user
                     handleVibrationAndToast(gesture, myo);
+
+                    // Tandai gesture ini sudah diproses
+                    processedGesturesRef.current.add(gesture);
                 }
                 break;
             }
@@ -372,16 +393,8 @@ export const NutrientViewer = React.forwardRef<
                     // Dapatkan status sebelum simulasi
                     const isEnteringFullscreen = !document.fullscreenElement;
 
-                    // Simulasi keyboard shortcut Ctrl+M
-                    const event = new KeyboardEvent("keydown", {
-                        key: "m",
-                        code: "KeyM",
-                        keyCode: 77, // Kode untuk tombol M
-                        ctrlKey: true, // Set modifier Ctrl
-                        bubbles: true,
-                        cancelable: true,
-                    });
-                    document.dispatchEvent(event);
+                    // Gunakan helper function yang sama
+                    simulateKeyboardShortcut("m", 77, { ctrlKey: true });
 
                     // Tambahkan delay untuk feedback
                     setTimeout(() => {
@@ -390,6 +403,9 @@ export const NutrientViewer = React.forwardRef<
                             myo,
                             isEnteringFullscreen
                         );
+
+                        // Tandai gesture ini sudah diproses
+                        processedGesturesRef.current.add(gesture);
                     }, 500);
                 } catch (err) {
                     console.error("Error processing fist gesture:", err);
@@ -403,6 +419,9 @@ export const NutrientViewer = React.forwardRef<
                             ? null
                             : "THUMBNAILS";
                         handleVibrationAndToast(gesture, myo, showingSidebar);
+
+                        // Tandai gesture ini sudah diproses
+                        processedGesturesRef.current.add(gesture);
                         return state.set("sidebarMode", newSidebarMode);
                     });
                 } catch (err) {
