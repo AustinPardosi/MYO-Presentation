@@ -1,7 +1,7 @@
 /* eslint-disable */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 // Deklarasi interface untuk Myo yang lebih lengkap
 declare global {
@@ -53,7 +53,7 @@ declare global {
 // Mendefinisikan Myo secara global dengan casting types untuk menghindari konflik
 declare global {
     interface Window {
-        Myo: any; // Menggunakan any secara eksplisit dan terpisah
+        Myo: any; // Kembali ke any untuk menghindari error linter
     }
 }
 
@@ -92,6 +92,8 @@ export function MyoController({
     const [status, setStatus] = useState("waiting");
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [myoInstance, setMyoInstance] = useState<MyoInstance | null>(null);
+    // Ref untuk melacak apakah event listeners sudah didaftarkan
+    const listenersRegistered = useRef(false);
 
     // Fungsi untuk memperbarui status
     const updateStatus = (newStatus: string) => {
@@ -103,6 +105,112 @@ export function MyoController({
     const handleError = (error: Error, context: string = "") => {
         console.error(`Myo error (${context}):`, error);
         onError?.(error);
+    };
+
+    // Fungsi untuk mencegah gerakan terduplikasi
+    const createGestureHandler = (gesture: MyoEvent, myo: MyoInstance) => {
+        // Gunakan debounce untuk mencegah trigger berulang
+        let lastTriggered = 0;
+        const DEBOUNCE_TIME = 500; // waktu dalam milidetik
+
+        return function () {
+            const now = Date.now();
+            if (now - lastTriggered > DEBOUNCE_TIME) {
+                lastTriggered = now;
+                console.log(`Gerakan ${gesture} terdeteksi`);
+
+                // Debug locking status pada gesture
+                console.log(
+                    `Myo locked status: ${myo.locked}, synced: ${myo.synced}`
+                );
+
+                // Otomatis unlock jika terkunci dan gesture adalah double_tap
+                if (myo.locked && gesture === "double_tap") {
+                    try {
+                        console.log("Auto unlocking Myo on double tap");
+                        // Unlock dengan delay untuk memastikan prosesnya lengkap
+                        setTimeout(() => {
+                            try {
+                                myo.unlock(true);
+                                console.log("Myo unlocked after double tap");
+                            } catch (e) {
+                                console.warn(
+                                    "Error auto unlocking with delay:",
+                                    e
+                                );
+                            }
+                        }, 100);
+                    } catch (e) {
+                        console.warn("Error in initial auto unlocking:", e);
+                    }
+                }
+
+                // Panggil callback onGesture jika disediakan
+                onGesture?.(gesture, myo);
+            } else {
+                console.log(
+                    `Mengabaikan gerakan ${gesture} (terlalu cepat setelah gerakan terakhir)`
+                );
+            }
+        };
+    };
+
+    const registerEventListeners = (myo: MyoInstance) => {
+        if (listenersRegistered.current) {
+            console.log(
+                "Event listeners sudah terdaftar, tidak mendaftarkan ulang"
+            );
+            return;
+        }
+
+        // Mendeteksi gerakan yang diinginkan (kecuali rest jika disableRest = true)
+        const gestures: MyoEvent[] = [
+            "fist",
+            "wave_in",
+            "wave_out",
+            "fingers_spread",
+            "double_tap",
+        ];
+
+        if (!disableRest) {
+            gestures.push("rest");
+        }
+
+        // Pastikan semua listener dihapus terlebih dahulu
+        cleanupGestureListeners();
+
+        // Tambahkan listener baru dengan handler anti-duplikasi
+        gestures.forEach((gesture) => {
+            const handler = createGestureHandler(gesture, myo);
+            window.Myo.on(gesture, handler);
+        });
+
+        listenersRegistered.current = true;
+        console.log("Event listeners berhasil didaftarkan");
+    };
+
+    const cleanupGestureListeners = () => {
+        if (!window.Myo) return;
+
+        const gestures: MyoEvent[] = [
+            "fist",
+            "wave_in",
+            "wave_out",
+            "fingers_spread",
+            "double_tap",
+            "rest",
+        ];
+
+        gestures.forEach((gesture) => {
+            try {
+                window.Myo.off(gesture);
+            } catch (e) {
+                console.warn(`Error saat membersihkan listener ${gesture}:`, e);
+            }
+        });
+
+        listenersRegistered.current = false;
+        console.log("Semua gesture listeners dibersihkan");
     };
 
     useEffect(() => {
@@ -223,6 +331,7 @@ export function MyoController({
             window.Myo.on("socket_closed", () => {
                 console.log("WebSocket connection closed");
                 updateStatus("websocket_closed");
+                cleanupGestureListeners();
             });
 
             // Mendeteksi ketika Myo terhubung
@@ -232,6 +341,9 @@ export function MyoController({
                     setConnected(true);
                     setMyoInstance(this);
                     updateStatus("connected");
+
+                    // Daftarkan event listeners setelah terhubung
+                    registerEventListeners(this);
 
                     // Unlock myo segera dan tahan (hold) supaya tidak lock otomatis
                     try {
@@ -299,6 +411,7 @@ export function MyoController({
                     setConnected(false);
                     setMyoInstance(null);
                     updateStatus("disconnected");
+                    cleanupGestureListeners();
 
                     // Panggil callback onDisconnect jika disediakan
                     onDisconnect?.();
@@ -341,92 +454,6 @@ export function MyoController({
                     handleError(error as Error, "arm_unsynced_handler");
                 }
             });
-
-            // Mendeteksi gerakan yang diinginkan (kecuali rest jika disableRest = true)
-            const gestures: MyoEvent[] = [
-                "fist",
-                "wave_in",
-                "wave_out",
-                "fingers_spread",
-                "double_tap",
-            ];
-
-            if (!disableRest) {
-                gestures.push("rest");
-            }
-
-            // Pastikan listener dihapus sebelum ditambahkan untuk menghindari duplikasi
-            gestures.forEach((gesture) => {
-                window.Myo.off(gesture);
-            });
-
-            // Variabel untuk memantau status locked global
-            let lastLockState = false;
-
-            // Tambahkan listener baru
-            gestures.forEach((gesture) => {
-                window.Myo.on(gesture, function (this: MyoInstance) {
-                    try {
-                        console.log(`Gerakan ${gesture} terdeteksi`);
-
-                        // Debug locking status pada gesture
-                        console.log(
-                            `Myo locked status: ${this.locked}, synced: ${this.synced}`
-                        );
-
-                        // Deteksi perubahan status lock
-                        if (lastLockState !== this.locked) {
-                            console.log(
-                                `Lock state changed: ${lastLockState} -> ${this.locked}`
-                            );
-                            lastLockState = this.locked;
-                        }
-
-                        // Otomatis unlock jika terkunci dan gesture adalah double_tap
-                        if (this.locked && gesture === "double_tap") {
-                            try {
-                                console.log("Auto unlocking Myo on double tap");
-                                // Unlock dengan delay untuk memastikan prosesnya lengkap
-                                setTimeout(() => {
-                                    try {
-                                        this.unlock(true);
-                                        console.log(
-                                            "Myo unlocked after double tap"
-                                        );
-                                    } catch (e) {
-                                        console.warn(
-                                            "Error auto unlocking with delay:",
-                                            e
-                                        );
-                                    }
-                                }, 100);
-                            } catch (e) {
-                                console.warn(
-                                    "Error in initial auto unlocking:",
-                                    e
-                                );
-                            }
-                        }
-
-                        // Panggil callback onGesture jika disediakan, dengan delay kecil untuk stabilitas
-                        setTimeout(() => {
-                            try {
-                                onGesture?.(gesture, this);
-                            } catch (e) {
-                                console.error(
-                                    "Error in delayed gesture callback:",
-                                    e
-                                );
-                            }
-                        }, 10);
-                    } catch (error) {
-                        handleError(
-                            error as Error,
-                            `gesture_${gesture}_handler`
-                        );
-                    }
-                });
-            });
         } catch (error) {
             handleError(error as Error, "initialization_process");
             updateStatus("init_error");
@@ -444,17 +471,8 @@ export function MyoController({
                 window.Myo.off("arm_synced");
                 window.Myo.off("arm_unsynced");
 
-                const gestures: MyoEvent[] = [
-                    "fist",
-                    "wave_in",
-                    "wave_out",
-                    "fingers_spread",
-                    "double_tap",
-                    "rest",
-                ];
-                gestures.forEach((gesture) => {
-                    window.Myo.off(gesture);
-                });
+                // Bersihkan gesture listeners
+                cleanupGestureListeners();
 
                 // Coba putuskan koneksi jika masih tersambung
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
