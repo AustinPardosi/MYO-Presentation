@@ -67,6 +67,10 @@ export const NutrientViewer = React.forwardRef<
     const [myoConnected, setMyoConnected] = React.useState(false);
     const [unlocked, setUnlocked] = React.useState(false);
     const [debugInfo, setDebugInfo] = React.useState(""); // State untuk debug info
+    const [pdfInitialized, setPdfInitialized] = React.useState(false);
+
+    // Ref untuk status unlocked agar selalu akses nilai terbaru
+    const unlockedRef = React.useRef(false);
 
     // Ref untuk menyimpan waktu auto-lock
     const autoLockTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -105,9 +109,17 @@ export const NutrientViewer = React.forwardRef<
             setCurrentPage(viewerRef.current.viewState.currentPageIndex - 1),
     }));
 
+    // Update ref saat state unlocked berubah
+    React.useEffect(() => {
+        unlockedRef.current = unlocked;
+    }, [unlocked]);
+
     // Fungsi untuk mengatur mode unlocked dengan debounce protection
     const setUnlockedMode = (value: boolean) => {
         console.log(`Setting unlocked to ${value}`);
+
+        // Update ref juga saat state diubah langsung
+        unlockedRef.current = value;
 
         // Jika mengunci, hapus timeout untuk menghindari race condition
         if (!value && autoLockTimeoutRef.current) {
@@ -132,6 +144,8 @@ export const NutrientViewer = React.forwardRef<
             autoLockTimeoutRef.current = setTimeout(() => {
                 console.log("Auto-lock triggered after 30s");
                 setUnlocked(false);
+                // Pastikan ref juga diupdate saat auto-lock
+                unlockedRef.current = false;
                 toast.info("Myo Locked - Gesture tidak aktif", {
                     style: {
                         fontWeight: "bold",
@@ -260,10 +274,10 @@ export const NutrientViewer = React.forwardRef<
         console.log("Nutrient API Debug:", debugNutrientAPI());
 
         console.log(
-            `Debug - Gesture: ${gesture}, Unlocked: ${unlocked}, Myo.locked: ${myo.locked}`
+            `Debug - Gesture: ${gesture}, Unlocked: ${unlockedRef.current}, Myo.locked: ${myo.locked}`
         );
         updateDebugInfo(
-            `Gesture: ${gesture}, Unlocked: ${unlocked}, Myo.locked: ${myo.locked}`
+            `Gesture: ${gesture}, Unlocked: ${unlockedRef.current}, Myo.locked: ${myo.locked}`
         );
 
         // Double tap untuk unlock
@@ -311,9 +325,9 @@ export const NutrientViewer = React.forwardRef<
         lastGestureTimeRef.current = currentTime;
 
         // Hanya proses gesture lain jika sudah unlocked
-        if (!unlocked) {
+        if (!unlockedRef.current) {
             console.log(
-                `Gesture ${gesture} ditolak - Myo masih terkunci (unlocked state: ${unlocked})`
+                `Gesture ${gesture} ditolak - Myo masih terkunci (unlocked ref: ${unlockedRef.current})`
             );
             updateDebugInfo(
                 `Gesture ditolak - Myo masih terkunci (locked: ${myo.locked})`
@@ -333,7 +347,7 @@ export const NutrientViewer = React.forwardRef<
 
         // Log jika kode mencapai titik ini (artinya unlocked adalah true)
         console.log(
-            `Processing gesture ${gesture} because unlocked=${unlocked}`
+            `Processing gesture ${gesture} because unlocked=${unlockedRef.current}`
         );
 
         // Handle gesture berdasarkan jenisnya
@@ -473,43 +487,49 @@ export const NutrientViewer = React.forwardRef<
         let cleanup = () => {};
 
         (async () => {
+            // Skip jika sudah diinisialisasi
+            if (pdfInitialized) return;
+
             const pspdfKit = (await import("@nutrient-sdk/viewer")).default;
-            pspdfKit.unload(container);
 
             if (container && pspdfKit && fileBuffer) {
-                // Define toolbar items, modify if needed
-                const toolbarItems: NutrientType.ToolbarItem[] = [
-                    { type: "search" },
-                    { type: "highlighter" },
-                ];
+                try {
+                    // Unload dulu jika ada instance sebelumnya
+                    pspdfKit.unload(container);
 
-                // Add Myo control status and unlock status item
-                toolbarItems.push({
-                    type: "custom",
-                    title: myoConnected
-                        ? `Myo ${unlocked ? "Unlocked ✅" : "Locked 🔒"}`
-                        : "Myo tidak terhubung ❌",
-                    onPress: () => {
-                        if (myoConnected) {
-                            if (unlocked) {
-                                toast.info(
-                                    "Myo Unlocked - Gesture aktif. Gunakan gerakan untuk navigasi."
-                                );
+                    // Definisi toolbarItems dan konfigurasi lainnya
+                    const toolbarItems: NutrientType.ToolbarItem[] = [
+                        { type: "search" },
+                        { type: "highlighter" },
+                    ];
+
+                    // Add Myo control status and unlock status item
+                    toolbarItems.push({
+                        type: "custom",
+                        title: myoConnected
+                            ? `Myo ${unlocked ? "Unlocked ✅" : "Locked 🔒"}`
+                            : "Myo tidak terhubung ❌",
+                        onPress: () => {
+                            if (myoConnected) {
+                                if (unlocked) {
+                                    toast.info(
+                                        "Myo Unlocked - Gesture aktif. Gunakan gerakan untuk navigasi."
+                                    );
+                                } else {
+                                    toast.info(
+                                        "Myo Locked - Lakukan Double Tap untuk unlock."
+                                    );
+                                }
                             } else {
                                 toast.info(
-                                    "Myo Locked - Lakukan Double Tap untuk unlock."
+                                    "Myo tidak terhubung. Pastikan Myo terpasang dan Myo Connect berjalan."
                                 );
                             }
-                        } else {
-                            toast.info(
-                                "Myo tidak terhubung. Pastikan Myo terpasang dan Myo Connect berjalan."
-                            );
-                        }
-                    },
-                });
+                        },
+                    });
 
-                pspdfKit
-                    .load({
+                    // Load file
+                    const instance = await pspdfKit.load({
                         container,
                         document: fileBuffer,
                         baseUrl: `${window.location.protocol}//${window.location.host}/`,
@@ -522,26 +542,33 @@ export const NutrientViewer = React.forwardRef<
                             sidebarMode: "THUMBNAILS",
                             sidebarPlacement: "END",
                         }),
-                    })
-                    .then((i) => {
-                        viewerRef.current = i;
-                        // Tampilkan instruksi setelah presentasi dimuat
-                        toast.info(
-                            "Lakukan Double Tap untuk unlock gesture kontrol",
-                            {
-                                duration: 5000,
-                            }
-                        );
                     });
+
+                    viewerRef.current = instance;
+                    setPdfInitialized(true); // <-- Tandai sudah diinisialisasi
+
+                    toast.info(
+                        "Lakukan Double Tap untuk unlock gesture kontrol"
+                    );
+                } catch (e) {
+                    console.error("Error loading document:", e);
+                    toast.error("Gagal memuat dokumen: " + e.message);
+                }
             }
 
             cleanup = () => {
-                pspdfKit.unload(container);
+                if (container) {
+                    try {
+                        pspdfKit.unload(container);
+                    } catch (e) {
+                        // Silence errors on cleanup
+                    }
+                }
             };
         })();
 
         return cleanup;
-    }, [fileBuffer, myoConnected, unlocked]);
+    }, [fileBuffer, myoConnected, unlocked, pdfInitialized]);
 
     return (
         <>
@@ -646,7 +673,7 @@ export const NutrientViewer = React.forwardRef<
             <MyoController
                 onGesture={(gesture, myo) => {
                     console.log(
-                        `Raw gesture from Myo: ${gesture}, Unlocked state: ${unlocked}`
+                        `Raw gesture from Myo: ${gesture}, Unlocked state: ${unlockedRef.current}`
                     );
                     updateDebugInfo(`Raw gesture: ${gesture}`);
 
@@ -662,9 +689,9 @@ export const NutrientViewer = React.forwardRef<
                     // Filter hanya gesture yang diinginkan (kecuali 'rest')
                     if (gesture !== "rest") {
                         // Check again for unlocked state before passing gesture
-                        if (unlocked) {
+                        if (unlockedRef.current) {
                             console.log(
-                                `Forwarding ${gesture} gesture because unlocked=${unlocked}`
+                                `Forwarding ${gesture} gesture because unlocked=${unlockedRef.current}`
                             );
 
                             // Hanya proses gesture lain jika dalam daftar
@@ -678,7 +705,7 @@ export const NutrientViewer = React.forwardRef<
                             }
                         } else {
                             console.log(
-                                `Skipping ${gesture} gesture because unlocked=${unlocked}`
+                                `Skipping ${gesture} gesture because unlocked=${unlockedRef.current}`
                             );
                             toast.warning(
                                 "Myo locked - Double Tap untuk unlock",
