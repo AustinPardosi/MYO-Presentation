@@ -311,7 +311,8 @@ export const NutrientViewer = React.forwardRef<
 
         // Rate limiting untuk gesture processing
         const currentTime = Date.now();
-        const timeSinceLastGesture = currentTime - lastGestureTimeRef.current;
+        // Variabel untuk digunakan jika rate limiting diaktifkan kembali
+        // const timeSinceLastGesture = currentTime - lastGestureTimeRef.current;
 
         // Pastikan tidak memproses gesture terlalu sering (min 300ms antara gesture)
         // if (timeSinceLastGesture < 300) {
@@ -455,19 +456,32 @@ export const NutrientViewer = React.forwardRef<
                 break;
             }
             case "fist": // Toggle fullscreen
-                console.log("Processing fist gesture - toggle fullscreen");
+                console.log("Processing fist gesture - simulating Ctrl+M");
                 try {
+                    // Dapatkan status sebelum simulasi
                     const isEnteringFullscreen = !document.fullscreenElement;
-                    toggleFullscreen();
 
-                    // Tambahkan delay untuk memastikan status getaran dan toast muncul setelah fullscreen selesai
+                    // Simulasi keyboard shortcut Ctrl+M
+                    const event = new KeyboardEvent("keydown", {
+                        key: "m",
+                        code: "KeyM",
+                        keyCode: 77, // Kode untuk tombol M
+                        ctrlKey: true, // Set modifier Ctrl
+                        bubbles: true,
+                        cancelable: true,
+                    });
+                    document.dispatchEvent(event);
+
+                    // Tambahkan delay untuk memastikan getaran dan toast muncul setelah shortcut diproses
                     setTimeout(() => {
                         handleVibrationAndToast(
                             gesture,
                             myo,
                             isEnteringFullscreen
                         );
-                        console.log("Successfully processed fist gesture");
+                        console.log(
+                            "Successfully processed fist gesture via Ctrl+M simulation"
+                        );
                     }, 500);
                 } catch (err) {
                     console.error("Error processing fist gesture:", err);
