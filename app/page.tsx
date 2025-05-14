@@ -192,7 +192,8 @@ export default function Home() {
         const currentIndex = onboardingSequence.indexOf(onboardingStep!);
         const nextStep = onboardingSequence[currentIndex + 1];
         if (nextStep) setOnboardingStep(nextStep);
-        else setShowOnboarding(false); // End onboarding
+        else setShowOnboarding(false);
+     } // End onboarding
 
     const toggleTutorial = () => {
         setShowTutorial(!showTutorial);
@@ -358,8 +359,7 @@ export default function Home() {
             ) : (
                 <div className="flex flex-col w-full h-screen overflow-hidden">
                     {showOnboardingPresent && <OnboardingPresent handleBackClick={handleBackClick} />}
-                    {showOnboarding && onboardingStep && <OnboardingGestures gesture={onboardingStep} handleBackClick={handleBackClick} handleNextStep={handleNextStep} />
-                        }
+                    {showOnboarding && onboardingStep && <OnboardingGestures gesture={onboardingStep} handleBackClick={handleBackClick} handleNextStep={handleNextStep} />}
                         {/* Header (File Info) */}
                         <div className="my-6 mx-4 flex justify-between items-center shrink-0">
                             <Button onClick={handleBackClick} className="bg-transparent hover:bg-transparent">
@@ -368,20 +368,17 @@ export default function Home() {
                             <div>
                                 <h2 className="text-xl font-medium">{selectedFile?.name}</h2>
                             </div>
-                            {/* <Button onClick={handleBackClick} className="bg-gray-200 text-black hover:bg-gray-300">
-                                Back to Upload
-                            </Button> */}
                             <Button onClick={handlePresentClick} className="z-60 bg-gray-200 text-black hover:bg-gray-300 cursor-pointer">
                                 Present
                             </Button>
                         </div>
-                        <Button
+                        {/* <Button
                             onClick={handlePresentClick}
                             className="bg-gray-200 text-black hover:bg-gray-300"
                         >
                             Present
-                        </Button>
-                    </div>
+                        </Button> */}
+                    {/* </div> */}
 
                         {/* Basic File Display */}
                         {selectedFile && (
