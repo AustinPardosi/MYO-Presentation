@@ -55,9 +55,10 @@ export interface NutrientViewerRef {
     previousPage: () => void;
 }
 
-export const NutrientViewer = React.forwardRef<NutrientViewerRef, React.ComponentProps<"div"> & { file: File }>(function NutrientViewer({
+export const NutrientViewer = React.forwardRef<NutrientViewerRef, React.ComponentProps<"div"> & { file: File; overlay?: React.ReactNode; }>(function NutrientViewer({
     file,
     className,
+    overlay,
     ...props
 }, ref) {
     const containerRef = React.useRef<HTMLDivElement>(null);
@@ -856,7 +857,13 @@ export const NutrientViewer = React.forwardRef<NutrientViewerRef, React.Componen
                 onStatusChange={handleMyoStatusChange}
                 appName="myo.presentation.app"
             />
-            <div ref={containerRef} className={className} {...props} />
+          <div ref={containerRef} className={className} {...props} > 
+                {overlay && (
+                  <div className="absolute inset-0 z-50">
+                    {overlay}
+                  </div>
+                )}
+          </div>
         </>
     );
 });
