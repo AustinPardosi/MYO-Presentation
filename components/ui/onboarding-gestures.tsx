@@ -1,5 +1,10 @@
 import Image from "next/image";
 import { Button } from "./button";
+import { useRef } from "react";
+import { NutrientViewerRef } from "./NutrientViewer";
+import { MyoController } from "./MyoController";
+import React from "react";
+import { toast } from "sonner";
 
 type GestureKey = "unlock" | "next" | "prev" | "fullscreen" | "activatePointer" | "deactivatePointer" | "end";
 
@@ -73,47 +78,118 @@ export default function OnboardingGestures({
     const data = gestures[gesture];
     const isUnlock = gesture === "unlock";
     const isEnd = gesture === "end";
+    
+    const viewerRef = useRef<NutrientViewerRef>(null);
+    const unlockedRef = React.useRef(false);
 
     return (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="flex flex-col rounded-xl p-6 shadow-lg text-center space-y-4 max-w-sm w-full">
-                {/* Always show unlock gesture first if not "unlock" */}
-                <div className="flex flex-row gap-8 mb-10">
-                    {!isUnlock && !isEnd && (
-                        <Image
-                            src={gestures.unlock.icon}
-                            alt={gestures.unlock.name}
+        <>
+            <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
+                <div className="flex flex-col rounded-xl p-6 shadow-lg text-center space-y-4 max-w-sm w-full">
+                    {/* Always show unlock gesture first if not "unlock" */}
+                    <div className="flex flex-row gap-8 mb-10">
+                        {!isUnlock && !isEnd && (
+                            <Image
+                                src={gestures.unlock.icon}
+                                alt={gestures.unlock.name}
+                                width={150}
+                                height={150}
+                                className="mx-auto"
+                            />
+                        )}
+                        {!isEnd && <Image
+                            src={data.icon}
+                            alt={data.name}
                             width={150}
                             height={150}
                             className="mx-auto"
-                        />
-                    )}
-                    {!isEnd && <Image
-                        src={data.icon}
-                        alt={data.name}
-                        width={150}
-                        height={150}
-                        className="mx-auto"
-                    />}
+                        />}
+                    </div>
+                    <p>
+                        {formatDescription(data.description)}
+                    </p>
+                    {!isEnd && <Button 
+                        variant="outline"
+                        onClick={handleNextStep}
+                        className="w-fit self-center mt-8 mb-0 cursor-pointer hover:bg-white/10 hover:text-white"
+                    >
+                        Next
+                    </Button>}
+                    <Button
+                        variant="link" 
+                        className="w-fit self-center p-0 text-white text-right text-xs font-semibold cursor-pointer"
+                        onClick={handleBackClick}
+                    >
+                        {isEnd ? 'Exit tutorial' : 'Skip'}
+                    </Button>
                 </div>
-                <p>
-                    {formatDescription(data.description)}
-                </p>
-                {!isEnd && <Button 
-                    variant="outline"
-                    onClick={handleNextStep}
-                    className="w-fit self-center mt-8 mb-0 cursor-pointer hover:bg-white/10 hover:text-white"
-                >
-                    Next
-                </Button>}
-                <Button
-                    variant="link" 
-                    className="w-fit self-center p-0 text-white text-right text-xs font-semibold cursor-pointer"
-                    onClick={handleBackClick}
-                >
-                    {isEnd ? 'Exit tutorial' : 'Skip'}
-                </Button>
             </div>
-        </div>
+            
+            <MyoController
+                onGesture={(myoGesture, myo) => {
+                    viewerRef.current?.updateDebugInfo(`Raw gesture: ${gesture}`);
+
+                    if (isEnd) return;
+
+                    if (myoGesture === "double_tap") {
+                        viewerRef.current?.handleMyoGesture("double_tap", myo);
+                        unlockedRef.current = true;
+
+                        if (isUnlock) {
+                            handleNextStep(); // go to next step immediately
+                            console.log('onboarding unlock');
+                        }
+
+                        return;
+                    }
+
+                    // Only handle gestures if unlocked
+                    if (!unlockedRef.current) {
+                    toast.warning("Myo locked - Double Tap untuk unlock", {
+                        id: "skipped-gesture",
+                        duration: 1000,
+                    });
+                    return;
+                    }
+
+                    // Handle specific gesture actions
+                    const handleWithTimeout = (delay = 0) =>
+                    setTimeout(() => {
+                        handleNextStep();
+                        unlockedRef.current = false; // reset for next step
+                    }, delay);
+
+                    // Filter hanya gesture yang diinginkan (kecuali 'rest')
+                    if (!isUnlock && myoGesture !== "rest") {
+                        // Check for unlocked state before passing gesture
+                        if (unlockedRef.current) {
+                            // Hanya proses gesture lain jika dalam daftar
+                            if (
+                                myoGesture === "fist" ||
+                                myoGesture === "wave_in" ||
+                                myoGesture === "wave_out" ||
+                                myoGesture === "fingers_spread"
+                            ) {
+                                viewerRef.current?.handleMyoGesture(myoGesture, myo);
+                                handleWithTimeout(300);
+                            }
+                        } else {
+                            toast.warning(
+                                "Myo locked - Double Tap untuk unlock",
+                                {
+                                    id: "skipped-gesture",
+                                    duration: 1000,
+                                }
+                            );
+                        }
+                    }
+                }}
+                onConnect={viewerRef.current?.handleMyoConnect}
+                onDisconnect={viewerRef.current?.handleMyoDisconnect}
+                onError={viewerRef.current?.handleMyoError}
+                onStatusChange={viewerRef.current?.handleMyoStatusChange}
+                appName="myo.presentation.app"
+            />
+        </>
     );
 }

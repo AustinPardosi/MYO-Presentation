@@ -31,7 +31,7 @@ const gestureVibrations: Record<MyoGesture, VibrateIntensity> = {
     wave_out: "short",
     fist: "medium",
     fingers_spread: "short",
-    double_tap: "medium",
+    double_tap: "short",
 };
 
 // Konfigurasi pesan toast untuk masing-masing gesture
@@ -51,8 +51,14 @@ const gestureMessages: Record<MyoGesture, (isActive?: boolean) => string> = {
 export interface NutrientViewerRef {
     toggleFullscreen: () => Promise<void>;
     setCurrentPage: (i: number) => void;
-    nextPage: () => void;
-    previousPage: () => void;
+    // nextPage: () => void;
+    // previousPage: () => void;
+    updateDebugInfo: (info: string) => void;
+    handleMyoGesture: (gesture: MyoGesture, myo: MyoInstance) => void;
+    handleMyoConnect: (myo: MyoInstance) => void;
+    handleMyoDisconnect: () => void;
+    handleMyoError: (error: Error) => void;
+    handleMyoStatusChange: (status: string) => void;
 }
 
 export const NutrientViewer = React.forwardRef<
@@ -104,12 +110,18 @@ export const NutrientViewer = React.forwardRef<
     React.useImperativeHandle(ref, () => ({
         toggleFullscreen,
         setCurrentPage,
-        nextPage: () =>
-            viewerRef.current &&
-            setCurrentPage(viewerRef.current.viewState.currentPageIndex + 1),
-        previousPage: () =>
-            viewerRef.current &&
-            setCurrentPage(viewerRef.current.viewState.currentPageIndex - 1),
+        // nextPage: () =>
+        //     viewerRef.current &&
+        //     setCurrentPage(viewerRef.current.viewState.currentPageIndex + 1),
+        // previousPage: () =>
+        //     viewerRef.current &&
+        //     setCurrentPage(viewerRef.current.viewState.currentPageIndex - 1),
+        updateDebugInfo,
+        handleMyoGesture,
+        handleMyoConnect,
+        handleMyoDisconnect,
+        handleMyoError,
+        handleMyoStatusChange,
     }));
 
     // Update ref saat state unlocked berubah
@@ -408,7 +420,7 @@ export const NutrientViewer = React.forwardRef<
     // Helper function untuk vibrate pada koneksi yang aman
     const vibrateOnEvent = (
         myo: MyoInstance,
-        intensity: VibrateIntensity = "medium"
+        intensity: VibrateIntensity = "short"
     ) => {
         // Hanya kirim getaran jika WebSocket sudah OPEN
         setTimeout(() => {

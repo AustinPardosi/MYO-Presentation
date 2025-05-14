@@ -252,7 +252,7 @@ export function MyoController({
                                                 socket?.readyState ===
                                                 WebSocket.OPEN
                                             ) {
-                                                this.vibrate("medium");
+                                                this.vibrate("short");
                                                 console.log(
                                                     "Sent vibration confirmation"
                                                 );

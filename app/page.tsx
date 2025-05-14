@@ -175,6 +175,8 @@ export default function Home() {
 
         setSelectedFile(null);
         setFileUrl(null);
+        setShowOnboarding(false);
+        setShowOnboardingPresent(false);
     };
 
     const handlePresentClick = () => {
