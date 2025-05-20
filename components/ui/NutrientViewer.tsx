@@ -4,15 +4,9 @@ import type * as NutrientType from "@nutrient-sdk/viewer";
 import * as React from "react";
 import { MyoController } from "./MyoController";
 import { toast } from "sonner";
-import { MyoInstance } from "Myo";
+import { MyoInstance, Pose } from "Myo";
 
-// Tentukan tipe gesture Myo yang digunakan
-type MyoGesture =
-    | "fist"
-    | "wave_in"
-    | "wave_out"
-    | "fingers_spread"
-    | "double_tap";
+type HandledPose = Exclude<Pose, "rest">;
 
 // Tipe intensitas getaran
 type VibrateIntensity = "short" | "medium" | "long";
@@ -27,7 +21,7 @@ const gestureNames = {
 };
 
 // Konfigurasi getaran untuk masing-masing gesture
-const gestureVibrations: Record<MyoGesture, VibrateIntensity> = {
+const gestureVibrations: Record<HandledPose, VibrateIntensity> = {
     wave_in: "short",
     wave_out: "short",
     fist: "medium",
@@ -36,7 +30,7 @@ const gestureVibrations: Record<MyoGesture, VibrateIntensity> = {
 };
 
 // Konfigurasi pesan toast untuk masing-masing gesture
-const gestureMessages: Record<MyoGesture, (isActive?: boolean) => string> = {
+const gestureMessages: Record<HandledPose, (isActive?: boolean) => string> = {
     wave_in: () => "Slide sebelumnya",
     wave_out: () => "Slide berikutnya",
     fist: (isEnteringFullscreen) =>
@@ -52,10 +46,10 @@ const gestureMessages: Record<MyoGesture, (isActive?: boolean) => string> = {
 export interface NutrientViewerRef {
     toggleFullscreen: () => Promise<void>;
     setCurrentPage: (i: number) => void;
-    // nextPage: () => void;
-    // previousPage: () => void;
-    updateDebugInfo: (info: string) => void;
-    handleMyoGesture: (gesture: MyoGesture, myo: MyoInstance) => void;
+    handleHandledPose: (
+        gesture: Exclude<Pose, "rest">,
+        myo: MyoInstance
+    ) => void;
     handleMyoConnect: (myo: MyoInstance) => void;
     handleMyoDisconnect: () => void;
     handleMyoError: (error: Error) => void;
@@ -71,22 +65,13 @@ export const NutrientViewer = React.forwardRef<
     const [fileBuffer, setFileBuffer] = React.useState<ArrayBuffer | null>(
         null
     );
-    const [myoConnected, setMyoConnected] = React.useState(false);
-    const [unlocked, setUnlocked] = React.useState(false);
-    const [debugInfo, setDebugInfo] = React.useState("");
     const [pdfInitialized, setPdfInitialized] = React.useState(false);
-
-    // Ref untuk status unlocked agar selalu akses nilai terbaru
-    const unlockedRef = React.useRef(false);
-
-    // Ref untuk menyimpan waktu auto-lock
-    const autoLockTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
     // Ref untuk menyimpan waktu terakhir gesture diproses
     const lastGestureTimeRef = React.useRef<number>(0);
 
     // Ref untuk melacak gerakan yang sudah diproses sejak unlock terakhir
-    const processedGesturesRef = React.useRef<Set<MyoGesture>>(new Set());
+    const processedGesturesRef = React.useRef<Set<HandledPose>>(new Set());
 
     // Helper untuk simulasi shortcut keyboard
     const simulateKeyboardShortcut = (
@@ -138,7 +123,7 @@ export const NutrientViewer = React.forwardRef<
         } else {
             await containerRef.current?.requestFullscreen();
         }
-    }
+    };
 
     // Fungsi untuk mengubah halaman
     const setCurrentPage = (i: number) => {
@@ -157,81 +142,12 @@ export const NutrientViewer = React.forwardRef<
     React.useImperativeHandle(ref, () => ({
         toggleFullscreen,
         setCurrentPage,
-        // nextPage: () =>
-        //     viewerRef.current &&
-        //     setCurrentPage(viewerRef.current.viewState.currentPageIndex + 1),
-        // previousPage: () =>
-        //     viewerRef.current &&
-        //     setCurrentPage(viewerRef.current.viewState.currentPageIndex - 1),
-        updateDebugInfo,
-        handleMyoGesture,
+        handleHandledPose,
         handleMyoConnect,
         handleMyoDisconnect,
         handleMyoError,
         handleMyoStatusChange,
     }));
-
-    // Update ref saat state unlocked berubah
-    React.useEffect(() => {
-        unlockedRef.current = unlocked;
-    }, [unlocked]);
-
-    // Fungsi untuk mengatur mode unlocked dengan debounce protection
-    const setUnlockedMode = (value: boolean) => {
-        console.log(`Setting unlocked to ${value}`);
-
-        // Update ref juga saat state diubah langsung
-        unlockedRef.current = value;
-
-        // Reset set gerakan yang sudah diproses
-        processedGesturesRef.current.clear();
-
-        // Jika mengunci, hapus timeout untuk menghindari race condition
-        if (!value && autoLockTimeoutRef.current) {
-            clearTimeout(autoLockTimeoutRef.current);
-            autoLockTimeoutRef.current = null;
-        }
-
-        // Set state
-        setUnlocked(value);
-
-        // Jika unlock, atur timer auto-lock baru
-        if (value) {
-            // Clear existing timeout if any
-            if (autoLockTimeoutRef.current) {
-                clearTimeout(autoLockTimeoutRef.current);
-            }
-
-            // Set new timeout
-            autoLockTimeoutRef.current = setTimeout(() => {
-                setUnlocked(false);
-                // Pastikan ref juga diupdate saat auto-lock
-                unlockedRef.current = false;
-                toast.info("Myo Locked - Gesture tidak aktif", {
-                    style: {
-                        fontWeight: "bold",
-                        backgroundColor: "rgba(0, 0, 0, 0.8)",
-                        color: "#ffbdbd",
-                    },
-                    duration: 2000,
-                });
-            }, 3000);
-        }
-    };
-
-    // Debug info update (simpel)
-    const updateDebugInfo = (info: string) => {
-        setDebugInfo(`${new Date().toLocaleTimeString()}: ${info}`);
-    };
-
-    // Cleanup timeout pada unmount
-    React.useEffect(() => {
-        return () => {
-            if (autoLockTimeoutRef.current) {
-                clearTimeout(autoLockTimeoutRef.current);
-            }
-        };
-    }, []);
 
     // Cek status WebSocket
     const isWebSocketOpen = () => {
@@ -241,7 +157,7 @@ export const NutrientViewer = React.forwardRef<
 
     // Helper function untuk getaran dan feedback yang aman
     const handleVibrationAndToast = (
-        gesture: MyoGesture,
+        gesture: HandledPose,
         myo: MyoInstance,
         param?: boolean
     ) => {
@@ -270,69 +186,12 @@ export const NutrientViewer = React.forwardRef<
         }
     };
 
-    // Menambahkan indikator visual saat unlocked berubah
-    React.useEffect(() => {
-        if (unlocked) {
-            toast.success("Myo Unlocked! Gesture aktif untuk 30 detik", {
-                id: "myo-unlock-status",
-            });
-        } else {
-            toast.info("Myo Locked. Lakukan Double Tap untuk unlock", {
-                id: "myo-unlock-status",
-            });
-        }
-    }, [unlocked]);
-
     // Handle Myo gestures for presentation control
-    const handleMyoGesture = (gesture: MyoGesture, myo: MyoInstance) => {
+    const handleHandledPose = (gesture: HandledPose, myo: MyoInstance) => {
         if (!viewerRef.current) return;
-
-        // Log gesture yang terdeteksi
-        updateDebugInfo(
-            `Gesture: ${gesture}, Unlocked: ${unlockedRef.current}`
-        );
-
-        // Double tap untuk unlock
-        if (gesture === "double_tap") {
-            // Set unlocked dengan fungsi baru
-            setUnlockedMode(true);
-
-            // Coba unlock Myo jika masih terkunci
-            if (myo.locked) {
-                try {
-                    myo.unlock(true);
-                } catch (error) {
-                    console.error("Error unlocking Myo:", error);
-                }
-            }
-
-            handleVibrationAndToast(gesture, myo, true);
-
-            // Catat waktu terakhir gesture diproses
-            lastGestureTimeRef.current = Date.now();
-
-            // Reset set gerakan yang sudah diproses
-            processedGesturesRef.current.clear();
-            return;
-        }
 
         // Update waktu terakhir gesture
         lastGestureTimeRef.current = Date.now();
-
-        // Hanya proses gesture lain jika sudah unlocked
-        if (!unlockedRef.current) {
-            toast.warning("Lakukan Double Tap terlebih dahulu untuk unlock", {
-                id: "unlock-warning",
-                style: {
-                    fontWeight: "bold",
-                    fontSize: "16px",
-                    backgroundColor: "rgba(255, 180, 0, 0.9)",
-                    color: "black",
-                },
-                duration: 2000,
-            });
-            return;
-        }
 
         // Cek apakah gerakan sudah diproses sejak unlock terakhir
         if (processedGesturesRef.current.has(gesture)) {
@@ -459,16 +318,18 @@ export const NutrientViewer = React.forwardRef<
 
     // Handle Myo connection
     const handleMyoConnect = (myo: MyoInstance) => {
-        setMyoConnected(true);
         toast.success("Myo terhubung! Lakukan Double Tap untuk unlock gesture");
         vibrateOnEvent(myo);
     };
 
     // Handle Myo disconnection
     const handleMyoDisconnect = () => {
-        setMyoConnected(false);
-        setUnlocked(false);
         toast.error("Myo terputus!");
+    };
+
+    const handleMyoLocked = () => {
+        processedGesturesRef.current.clear();
+        console.log("Myo locked");
     };
 
     // Handle Myo error
@@ -481,7 +342,7 @@ export const NutrientViewer = React.forwardRef<
         if (status === "synced") {
             toast.success("Myo tersinkronisasi dengan lengan Anda");
         } else if (status === "unsynced") {
-            setUnlocked(false);
+            // setUnlocked(false);
             toast.warning("Myo tidak tersinkronisasi. Lakukan gerakan sync");
         }
     };
@@ -538,31 +399,6 @@ export const NutrientViewer = React.forwardRef<
                         { type: "highlighter" },
                     ];
 
-                    // Add Myo control status and unlock status item
-                    toolbarItems.push({
-                        type: "custom",
-                        title: myoConnected
-                            ? `Myo ${unlocked ? "Unlocked ✅" : "Locked 🔒"}`
-                            : "Myo tidak terhubung ❌",
-                        onPress: () => {
-                            if (myoConnected) {
-                                if (unlocked) {
-                                    toast.info(
-                                        "Myo Unlocked - Gesture aktif. Gunakan gerakan untuk navigasi."
-                                    );
-                                } else {
-                                    toast.info(
-                                        "Myo Locked - Lakukan Double Tap untuk unlock."
-                                    );
-                                }
-                            } else {
-                                toast.info(
-                                    "Myo tidak terhubung. Pastikan Myo terpasang dan Myo Connect berjalan."
-                                );
-                            }
-                        },
-                    });
-
                     // Load file
                     const instance = await pspdfKit.load({
                         container,
@@ -612,140 +448,31 @@ export const NutrientViewer = React.forwardRef<
 
     return (
         <>
-            {/* Menambahkan indikator status unlocked */}
-            <div
-                style={{
-                    position: "fixed",
-                    bottom: "50px",
-                    left: "10px",
-                    padding: "12px 15px",
-                    background: unlocked
-                        ? "rgba(0, 255, 0, 0.8)"
-                        : "rgba(255, 0, 0, 0.8)",
-                    color: "white",
-                    borderRadius: "8px",
-                    zIndex: 9999,
-                    fontSize: "16px",
-                    fontWeight: "bold",
-                    boxShadow: "0 4px 15px rgba(0,0,0,0.3)",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    width: "220px",
-                    border: unlocked
-                        ? "2px solid #00ff00"
-                        : "2px solid #ff0000",
-                }}
-            >
-                <div
-                    style={{
-                        fontSize: "18px",
-                        marginBottom: "8px",
-                        textShadow: "0 1px 3px rgba(0,0,0,0.5)",
-                    }}
-                >
-                    Myo {unlocked ? "UNLOCKED ✅" : "LOCKED 🔒"}
-                </div>
-                <div
-                    style={{
-                        fontSize: "14px",
-                        marginBottom: "5px",
-                        textAlign: "center",
-                    }}
-                >
-                    {unlocked ? (
-                        <span style={{ color: "#8effb9", fontWeight: "bold" }}>
-                            Gesture aktif - Double Tap untuk reset
-                        </span>
-                    ) : (
-                        <span style={{ color: "#ffbdbd", fontWeight: "bold" }}>
-                            Double Tap untuk unlock
-                        </span>
-                    )}
-                </div>
-                {myoConnected ? (
-                    <span
-                        style={{
-                            fontSize: "13px",
-                            color: "#a2e9ff",
-                            padding: "4px 8px",
-                            backgroundColor: "rgba(0,0,0,0.3)",
-                            borderRadius: "4px",
-                            marginTop: "3px",
-                        }}
-                    >
-                        Status: Terhubung ✓
-                    </span>
-                ) : (
-                    <span
-                        style={{
-                            fontSize: "13px",
-                            color: "#ffcfa2",
-                            padding: "4px 8px",
-                            backgroundColor: "rgba(0,0,0,0.3)",
-                            borderRadius: "4px",
-                            marginTop: "3px",
-                        }}
-                    >
-                        Status: Tidak terhubung ✗
-                    </span>
-                )}
-                {debugInfo && (
-                    <div
-                        style={{
-                            fontSize: "11px",
-                            opacity: 0.9,
-                            marginTop: "8px",
-                            maxWidth: "100%",
-                            overflowX: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            backgroundColor: "rgba(0,0,0,0.5)",
-                            padding: "5px",
-                            borderRadius: "4px",
-                            width: "100%",
-                        }}
-                    >
-                        {debugInfo}
-                    </div>
-                )}
-            </div>
             <MyoController
                 onGesture={(gesture, myo) => {
-                    updateDebugInfo(`Raw gesture: ${gesture}`);
-
                     // Always process double_tap immediately no matter what
                     if (gesture === "double_tap") {
-                        handleMyoGesture("double_tap", myo);
+                        handleHandledPose("double_tap", myo);
                         return;
                     }
 
                     // Filter hanya gesture yang diinginkan (kecuali 'rest')
                     if (gesture !== "rest") {
                         // Check for unlocked state before passing gesture
-                        if (unlockedRef.current) {
-                            // Hanya proses gesture lain jika dalam daftar
-                            if (
-                                gesture === "fist" ||
-                                gesture === "wave_in" ||
-                                gesture === "wave_out" ||
-                                gesture === "fingers_spread"
-                            ) {
-                                handleMyoGesture(gesture, myo);
-                            }
-                        } else {
-                            toast.warning(
-                                "Myo locked - Double Tap untuk unlock",
-                                {
-                                    id: "skipped-gesture",
-                                    duration: 2000,
-                                }
-                            );
+                        // Hanya proses gesture lain jika dalam daftar
+                        if (
+                            gesture === "fist" ||
+                            gesture === "wave_in" ||
+                            gesture === "wave_out" ||
+                            gesture === "fingers_spread"
+                        ) {
+                            handleHandledPose(gesture, myo);
                         }
                     }
                 }}
                 onConnect={handleMyoConnect}
                 onDisconnect={handleMyoDisconnect}
+                onLocked={handleMyoLocked}
                 onError={handleMyoError}
                 onStatusChange={handleMyoStatusChange}
                 appName="myo.presentation.app"
