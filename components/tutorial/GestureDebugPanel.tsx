@@ -2,9 +2,10 @@
 
 import React from "react";
 import { GestureLog } from "./MyoTutorialListener";
+import { isVec3 } from "@/lib/types";
 
 interface GestureDebugPanelProps {
-    gestureData: GestureLog | null;
+    gestureData: GestureLog<unknown> | null;
     title?: string;
 }
 
@@ -34,21 +35,21 @@ export function GestureDebugPanel({
     };
 
     // Format objek data untuk ditampilkan
-    const formatDataObject = (data: any) => {
+    const formatDataObject = (data: unknown) => {
         if (!data) return "No data";
 
         try {
             // Coba deteksi tipe data
-            if (data.type) {
+            if (data["type"]) {
                 // Bila ada "type" property, kemungkinan data pergerakan/rotasi
                 return (
                     <div>
                         <p className="font-medium mb-1 text-blue-300">
-                            Type: {data.type}
+                            Type: {data["type"]}
                         </p>
-                        {data.data && (
+                        {data["data"] && (
                             <div className="ml-2">
-                                <DataVisualization data={data.data} />
+                                <DataVisualization data={data["data"]} />
                             </div>
                         )}
                     </div>
@@ -59,6 +60,7 @@ export function GestureDebugPanel({
             }
         } catch (e) {
             // Fallback jika error
+            console.error(e);
             return (
                 <pre className="text-xs bg-gray-800 p-2 rounded text-blue-300 border border-gray-700">
                     {JSON.stringify(data, null, 2)}
@@ -68,13 +70,9 @@ export function GestureDebugPanel({
     };
 
     // Komponen visualisasi data sensor
-    const DataVisualization = ({ data }: { data: any }) => {
+    const DataVisualization = ({ data }: { data: unknown }) => {
         // Jika data berisi sumbu x, y, z (IMU data)
-        if (
-            data.x !== undefined ||
-            data.y !== undefined ||
-            data.z !== undefined
-        ) {
+        if (isVec3(data)) {
             return (
                 <div>
                     <div className="grid grid-cols-3 gap-2 mb-2">
@@ -89,7 +87,7 @@ export function GestureDebugPanel({
                                             {axis.toUpperCase()}
                                         </p>
                                         <p className="font-bold text-white">
-                                            {data[axis].toFixed(3)}
+                                            {(data[axis] as number).toFixed(3)}
                                         </p>
                                         {/* Progress bar untuk visualisasi */}
                                         <div className="w-full bg-gray-900 rounded-full h-2.5 mt-1">

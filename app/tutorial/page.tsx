@@ -1,11 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import {
-    MyoTutorialListener,
-    GestureLog,
-    useMyoGestures,
-} from "@/components/tutorial/MyoTutorialListener";
+import { useMyoGestures } from "@/components/tutorial/MyoTutorialListener";
 import { GestureDebugPanel } from "@/components/tutorial/GestureDebugPanel";
 
 export default function TutorialPage() {
@@ -27,7 +23,7 @@ export default function TutorialPage() {
     useEffect(() => {
         const checkMyo = setInterval(() => {
             if (window.Myo?.myos.length > 0) {
-                setConnected(window.Myo.myos[0].isConnected || false);
+                setConnected(window.Myo.myos[0].connected || false);
             }
         }, 1000);
 

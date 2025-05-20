@@ -4,6 +4,7 @@ import type * as NutrientType from "@nutrient-sdk/viewer";
 import * as React from "react";
 import { MyoController } from "./MyoController";
 import { toast } from "sonner";
+import { MyoInstance } from "Myo";
 
 // Tentukan tipe gesture Myo yang digunakan
 type MyoGesture =

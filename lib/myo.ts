@@ -116,4 +116,3 @@ declare module "Myo" {
         }
     }
 }
-
