@@ -133,7 +133,7 @@ export default function OnboardingGestures({
 
                     if (myoGesture === "double_tap") {
                         viewerRef.current?.handleMyoGesture("double_tap", myo);
-                        unlockedRef.current = true;
+                        // unlockedRef.current = true;
 
                         if (isUnlock) {
                             handleNextStep(); // go to next step immediately
@@ -162,7 +162,8 @@ export default function OnboardingGestures({
                     // Filter hanya gesture yang diinginkan (kecuali 'rest')
                     if (!isUnlock && myoGesture !== "rest") {
                         // Check for unlocked state before passing gesture
-                        if (unlockedRef.current) {
+                        // if (unlockedRef.current) {
+                            console.log('onboarding ', myoGesture);
                             // Hanya proses gesture lain jika dalam daftar
                             if (
                                 myoGesture === "fist" ||
@@ -173,15 +174,15 @@ export default function OnboardingGestures({
                                 viewerRef.current?.handleMyoGesture(myoGesture, myo);
                                 handleWithTimeout(300);
                             }
-                        } else {
-                            toast.warning(
-                                "Myo locked - Double Tap untuk unlock",
-                                {
-                                    id: "skipped-gesture",
-                                    duration: 1000,
-                                }
-                            );
-                        }
+                        // } else {
+                        //     toast.warning(
+                        //         "Myo locked - Double Tap untuk unlock",
+                        //         {
+                        //             id: "skipped-gesture",
+                        //             duration: 1000,
+                        //         }
+                        //     );
+                        // }
                     }
                 }}
                 onConnect={viewerRef.current?.handleMyoConnect}

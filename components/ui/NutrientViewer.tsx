@@ -131,8 +131,13 @@ export const NutrientViewer = React.forwardRef<
 
     // Fungsi untuk toggle fullscreen menggunakan simulasi Ctrl+M
     const toggleFullscreen = async () => {
-        simulateKeyboardShortcut("m", 77, { ctrlKey: true });
-    };
+        // simulateKeyboardShortcut("m", 77, { ctrlKey: true });
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else {
+            await containerRef.current?.requestFullscreen();
+        }
+    }
 
     // Fungsi untuk mengubah halaman
     const setCurrentPage = (i: number) => {
@@ -207,7 +212,7 @@ export const NutrientViewer = React.forwardRef<
                         backgroundColor: "rgba(0, 0, 0, 0.8)",
                         color: "#ffbdbd",
                     },
-                    duration: 300,
+                    duration: 2000,
                 });
             }, 3000);
         }
@@ -251,7 +256,7 @@ export const NutrientViewer = React.forwardRef<
                     backgroundColor: "rgba(0, 0, 0, 0.8)",
                     color: "white",
                 },
-                duration: 300,
+                duration: 2000,
             });
 
             // Cek apakah myo memiliki properti socket dan WebSocket sudah OPEN
@@ -338,7 +343,7 @@ export const NutrientViewer = React.forwardRef<
                         backgroundColor: "rgba(0, 0, 0, 0.8)",
                         color: "#a2e9ff",
                     },
-                    duration: 1000,
+                    duration: 2000,
                 }
             );
             return;
@@ -732,7 +737,7 @@ export const NutrientViewer = React.forwardRef<
                                 "Myo locked - Double Tap untuk unlock",
                                 {
                                     id: "skipped-gesture",
-                                    duration: 1000,
+                                    duration: 2000,
                                 }
                             );
                         }
