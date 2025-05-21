@@ -104,7 +104,6 @@ declare module "Myo" {
         on(eventName: "unlocked", callback: (this: MyoInstance, _: unknown, timestamp: number) => void): string;
         on(eventName: "warmup_completed", callback: (this: MyoInstance, _: unknown, timestamp: number) => void): string
 
-        on(eventName: "rssi", callback: (this: MyoInstance, data: RSSIData) => void): string;
         on(eventName: "rssi", callback: (this: MyoInstance, rssi: number, timestamp: number) => void): string;
         on(eventName: "bluetooth_strength", callback: (this: MyoInstance, bluetoothStrength: number, timestamp: number) => void): string;
         on(eventName: "battery_level", callback: (this: MyoInstance, batteryLevel: number, timestamp: number) => void): string

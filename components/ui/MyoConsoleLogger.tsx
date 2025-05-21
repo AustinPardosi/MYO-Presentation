@@ -6,6 +6,9 @@ import { useCallback, useEffect, useRef } from "react";
 // Komponen untuk mendeteksi dan log semua gerakan Myo ke konsol
 export function MyoConsoleLogger() {
     const [myo, myoLoaded, myoLoadError] = useMyo({ vector: true });
+
+    const eventHandlersRef = useRef<Record<string, string>>({});
+
     // Referensi untuk interval timer
     const batteryCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -83,11 +86,11 @@ export function MyoConsoleLogger() {
         console.log("Mencoba menghubungkan ke Myo Connect...");
 
         // Mendeteksi ketika Myo terhubung
-        myo.on("connected", () => {
+        eventHandlersRef.current["connected"] = myo.on("connected", () => {
             console.log("�� Myo terhubung!");
 
             // Myo.myos berisi daftar perangkat yang terhubung
-            if (myo.myos && myo.myos.length > 0) {
+            if (myo.myos.length > 0) {
                 console.log(
                     `Jumlah perangkat Myo terdeteksi: ${myo.myos.length}`
                 );
@@ -149,44 +152,59 @@ export function MyoConsoleLogger() {
         });
 
         // Log ketika Myo tidak terhubung
-        myo.on("disconnected", () => {
-            console.log("🔴 Myo terputus!");
-            // Bersihkan interval jika ada
-            if (batteryCheckIntervalRef.current) {
-                clearInterval(batteryCheckIntervalRef.current);
-                batteryCheckIntervalRef.current = null;
+        eventHandlersRef.current["disconnected"] = myo.on(
+            "disconnected",
+            () => {
+                console.log("🔴 Myo terputus!");
+                // Bersihkan interval jika ada
+                if (batteryCheckIntervalRef.current) {
+                    clearInterval(batteryCheckIntervalRef.current);
+                    batteryCheckIntervalRef.current = null;
+                }
             }
-        });
+        );
 
         // Log saat pemasangan dengan lengan (synced)
-        myo.on("arm_synced", (data) => {
-            console.log(
-                `🦾 Myo terpasang ke lengan: ${data.arm} dengan arah ${data.x_direction}`
-            );
-            // Tampilkan detail perangkat yang diperbarui
-            setTimeout(logMyoDetails, 500);
-        });
+        eventHandlersRef.current["arm_synced"] = myo.on(
+            "arm_synced",
+            (data) => {
+                console.log(
+                    `🦾 Myo terpasang ke lengan: ${data.arm} dengan arah ${data.x_direction}`
+                );
+                // Tampilkan detail perangkat yang diperbarui
+                setTimeout(logMyoDetails, 500);
+            }
+        );
 
         // Log saat pelepasan dari lengan (unsynced)
-        myo.on("arm_unsynced", () => {
-            console.log("💪 Myo dilepas dari lengan");
-            // Tampilkan detail perangkat yang diperbarui
-            setTimeout(logMyoDetails, 500);
-        });
+        eventHandlersRef.current["arm_unsynced"] = myo.on(
+            "arm_unsynced",
+            () => {
+                console.log("💪 Myo dilepas dari lengan");
+                // Tampilkan detail perangkat yang diperbarui
+                setTimeout(logMyoDetails, 500);
+            }
+        );
 
         // Log data baterai
-        myo.on("battery_level", (batteryLevel) => {
-            console.log(`🔋 Level baterai Myo: ${batteryLevel}%`);
-            // Tampilkan detail perangkat yang diperbarui
-            setTimeout(logMyoDetails, 500);
-        });
+        eventHandlersRef.current["battery_level"] = myo.on(
+            "battery_level",
+            (batteryLevel) => {
+                console.log(`🔋 Level baterai Myo: ${batteryLevel}%`);
+                // Tampilkan detail perangkat yang diperbarui
+                setTimeout(logMyoDetails, 500);
+            }
+        );
 
         // Log kekuatan bluetooth
-        myo.on("rssi", (data) => {
-            console.log(
-                `📶 Kekuatan sinyal Bluetooth: ${data.bluetooth_strength}% (RSSI: ${data.rssi})`
-            );
-        });
+        eventHandlersRef.current["rssi"] = myo.on(
+            "bluetooth_strength",
+            (bluetoothStrength) => {
+                console.log(
+                    `📶 Kekuatan sinyal Bluetooth: ${bluetoothStrength}%`
+                );
+            }
+        );
 
         // Mendeteksi semua gerakan dan mencetaknya ke konsol
         const gestures = [
@@ -199,7 +217,7 @@ export function MyoConsoleLogger() {
         ];
 
         gestures.forEach((gesture) => {
-            myo.on(gesture, () => {
+            eventHandlersRef.current[gesture] = myo.on(gesture, () => {
                 const timestamp = new Date().toISOString();
                 console.log(`⚡ [${timestamp}] Gerakan terdeteksi: ${gesture}`);
 
@@ -227,7 +245,7 @@ export function MyoConsoleLogger() {
         });
 
         // Log semua data pose untuk debugging
-        myo.on("pose", (_, pose) => {
+        eventHandlersRef.current["pose"] = myo.on("pose", (pose) => {
             console.log(`Pose terdeteksi: ${pose}`);
         });
     }, [logMyoDetails, myo, updateBatteryStatus]);
@@ -254,7 +272,7 @@ export function MyoConsoleLogger() {
 
             try {
                 events.forEach((event) => {
-                    myo.off(event);
+                    myo.off(eventHandlersRef.current[event]);
                 });
             } catch (error) {
                 console.error("Error saat membersihkan listener:", error);
@@ -269,7 +287,7 @@ export function MyoConsoleLogger() {
             if (myo.plugins?.vector) {
                 console.log("Myo Vector berhasil dimuat");
             }
-            
+
             initializeMyo();
         } else if (myoLoadError) {
             console.error("Gagal memuat Myo.js:", myoLoadError);

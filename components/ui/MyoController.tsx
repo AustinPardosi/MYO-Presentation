@@ -32,6 +32,8 @@ export function MyoController({
     const [myo, myoLoaded, myoLoadError] = useMyo({ vector: true });
     const [myoInitialized, setMyoInitialized] = useState(false);
 
+    const eventHandlersRef = useRef<Record<string, string>>({});
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [connected, setConnected] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -100,7 +102,7 @@ export function MyoController({
 
         gestures.forEach((gesture) => {
             try {
-                myo.off(gesture);
+                myo.off(eventHandlersRef.current[gesture]);
             } catch (e) {
                 console.warn(`Error saat membersihkan listener ${gesture}:`, e);
             }
@@ -133,18 +135,18 @@ export function MyoController({
             }
 
             // Pastikan semua listener dihapus terlebih dahulu
-            cleanupGestureListeners();
+            // cleanupGestureListeners();
 
             // Tambahkan listener baru dengan handler anti-duplikasi
             gestures.forEach((gesture) => {
                 const handler = createGestureHandler(gesture, myo);
-                myo.on(gesture, handler);
+                eventHandlersRef.current[gesture] = myo.on(gesture, handler);
             });
 
             listenersRegistered.current = true;
             console.log("Event listeners berhasil didaftarkan");
         },
-        [cleanupGestureListeners, createGestureHandler, disableRest]
+        [/*cleanupGestureListeners*/, createGestureHandler, disableRest]
     );
 
     const initializeMyo = useCallback(() => {
@@ -183,20 +185,20 @@ export function MyoController({
             updateStatus("connecting");
 
             // Deteksi ketika WebSocket terhubung
-            myo.on("ready", () => {
+            eventHandlersRef.current["ready"] = myo.on("ready", () => {
                 console.log("WebSocket connection ready");
                 updateStatus("websocket_ready");
             });
 
             // Deteksi ketika WebSocket terputus
-            myo.on("socket_closed", () => {
+            eventHandlersRef.current["socket_closed"] = myo.on("socket_closed", () => {
                 console.log("WebSocket connection closed");
                 updateStatus("websocket_closed");
                 cleanupGestureListeners();
             });
 
             // Mendeteksi ketika Myo terhubung
-            myo.on("connected", function () {
+            eventHandlersRef.current["connected"] = myo.on("connected", function () {
                 try {
                     console.log("Myo terhubung!", this.name);
                     setConnected(true);
@@ -226,7 +228,7 @@ export function MyoController({
             });
 
             // Mendeteksi ketika Myo terputus
-            myo.on("disconnected", function () {
+            eventHandlersRef.current["disconnected"] = myo.on("disconnected", function () {
                 try {
                     console.log("Myo terputus!");
                     setConnected(false);
@@ -241,16 +243,16 @@ export function MyoController({
                 }
             });
 
-            myo.on("locked", () => {
+            eventHandlersRef.current["locked"] = myo.on("locked", () => {
                 onLocked?.();
             });
 
-            myo.on("unlocked", () => {
+            eventHandlersRef.current["unlocked"] = myo.on("unlocked", () => {
                 onUnlocked?.();
             });
 
             // Deteksi sinkronisasi dengan lengan
-            myo.on("arm_synced", function (data) {
+            eventHandlersRef.current["arm_synced"] = myo.on("arm_synced", function (data) {
                 try {
                     console.log(`Myo tersinkronisasi dengan ${data.arm} arm`);
                     updateStatus("synced");
@@ -269,7 +271,7 @@ export function MyoController({
                 }
             });
 
-            myo.on("arm_unsynced", function () {
+            eventHandlersRef.current["arm_unsynced"] = myo.on("arm_unsynced", function () {
                 try {
                     console.log("Myo tidak tersinkronisasi");
                     updateStatus("unsynced");
@@ -305,7 +307,7 @@ export function MyoController({
             return;
         }
 
-        myo.on("vector", (vector) => {
+        eventHandlersRef.current["vector"] = myo.on("vector", (vector) => {
             console.log(
                 `Vector stream data: [${vector.x}, ${vector.y}; ${vector.theta}]`
             );
@@ -316,12 +318,12 @@ export function MyoController({
         if (myo) {
             try {
                 // Matikan semua event listener
-                myo.off("ready");
-                myo.off("socket_closed");
-                myo.off("connected");
-                myo.off("disconnected");
-                myo.off("arm_synced");
-                myo.off("arm_unsynced");
+                myo.off(eventHandlersRef.current["ready"]);
+                myo.off(eventHandlersRef.current["socket_closed"]);
+                myo.off(eventHandlersRef.current["connected"]);
+                myo.off(eventHandlersRef.current["disconnected"]);
+                myo.off(eventHandlersRef.current["arm_synced"]);
+                myo.off(eventHandlersRef.current["arm_unsynced"]);
 
                 // Bersihkan gesture listeners
                 cleanupGestureListeners();
@@ -339,7 +341,7 @@ export function MyoController({
     const cleanupVec = useCallback(() => {
         if (myo && myo.plugins?.vector) {
             try {
-                myo.off("vector");
+                myo.off(eventHandlersRef.current["vector"]);
             } catch (error) {
                 console.error("Error during Myo Vector cleanup:", error);
             }
