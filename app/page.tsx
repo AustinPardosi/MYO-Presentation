@@ -5,6 +5,24 @@ import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { Upload } from "@deemlol/next-icons";
+import {
+    NutrientViewer,
+    NutrientViewerRef,
+} from "@/components/ui/NutrientViewer";
+import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import OnboardingGestures from "@/components/ui/onboarding-gestures";
+import OnboardingPresent from "@/components/ui/onboarding-present";
+
+// Import tipe GestureKey
+type GestureKey =
+    | "unlock"
+    | "next"
+    | "prev"
+    | "fullscreen"
+    | "activatePointer"
+    | "deactivatePointer"
+    | "end";
 
 // Type untuk Recent Files
 type RecentFile = {
@@ -23,7 +41,24 @@ export default function Home() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
+    const [onboardingStep, setOnboardingStep] = useState<GestureKey | null>(
+        null
+    );
+    const [showOnboarding, setShowOnboarding] = useState(false);
+    const [showOnboardingPresent, setShowOnboardingPresent] = useState(false);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const viewerRef = useRef<NutrientViewerRef>(null);
+    const router = useRouter();
+    const onboardingSequence: GestureKey[] = [
+        "unlock",
+        "next",
+        "prev",
+        "activatePointer",
+        "deactivatePointer",
+        "fullscreen",
+        "end",
+    ];
 
     // Load recent files from localStorage
     useEffect(() => {
@@ -85,6 +120,7 @@ export default function Home() {
 
             setSelectedFile(file);
             setShowViewer(true);
+            router.push("?viewer=true");
 
             // Add to recent files
             addToRecentFiles(file);
@@ -134,138 +170,205 @@ export default function Home() {
             URL.revokeObjectURL(fileUrl);
         }
         setShowViewer(false);
+        // router.push("/");
+        router.back();
+
         setSelectedFile(null);
         setFileUrl(null);
+        setShowOnboarding(false);
+        setShowOnboardingPresent(false);
     };
 
-    const formatFileSize = (bytes: number): string => {
-        if (bytes < 1024) return bytes + " bytes";
-        else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + " KB";
-        else return (bytes / 1048576).toFixed(2) + " MB";
+    const handlePresentClick = () => {
+        if (showOnboardingPresent) {
+            setShowOnboardingPresent(false); // hide onboarding overlay
+            viewerRef.current?.toggleFullscreen();
+            // show gestures after fullscreen enters (delay to wait for fullscreen)
+            setTimeout(() => {
+                setShowOnboarding(true);
+                setOnboardingStep("unlock");
+            }, 500);
+        } else {
+            viewerRef.current?.toggleFullscreen();
+        }
     };
+
+    // Tambahkan event listener untuk shortcut keyboard "Ctrl + M"
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Check untuk kombinasi Ctrl + M
+            if (e.ctrlKey && e.key === "m") {
+                e.preventDefault(); // Cegah perilaku default browser
+                console.log("Shortcut Ctrl + M terdeteksi");
+                handlePresentClick();
+            }
+        };
+
+        // Tambahkan event listener
+        window.addEventListener("keydown", handleKeyDown);
+
+        // Cleanup listener saat component unmount
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [showOnboardingPresent]); // Dependensi karena handlePresentClick menggunakan showOnboardingPresent
+
+    const startOnboarding = () => {
+        setShowOnboardingPresent(true);
+    };
+
+    const handleNextStep = () => {
+        const currentIndex = onboardingSequence.indexOf(onboardingStep!);
+        const nextStep = onboardingSequence[currentIndex + 1];
+        if (nextStep) setOnboardingStep(nextStep);
+        else setShowOnboarding(false);
+    }; // End onboarding
 
     return (
-        <div className="flex flex-col items-center justify-center w-full min-h-screen h-full p-8">
+        <>
             {!showViewer ? (
-                <div className="flex flex-col items-center justify-center flex-grow w-full">
-                    {/* Logo */}
-                    <div className="mb-10">
-                        <Image
-                            src="/logo-image.svg"
-                            alt="Logo"
-                            width={200}
-                            height={50}
-                            style={{ height: "auto" }}
-                            priority
-                        />
-                    </div>
-
-                    {/* Drag & Drop Area */}
-                    <div
-                        className={`w-full max-w-[500px] h-[300px] border border-dashed ${
-                            isDragging
-                                ? "border-[#27592A] bg-[#131913]"
-                                : "border-gray-500"
-                        } rounded-md p-8 flex flex-col items-center justify-center cursor-pointer`}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
-                        onClick={handleBrowseClick}
-                    >
-                        <div className="mb-6">
-                            <Upload size={40} color="#FFFFFF" />
+                <div className="flex flex-col items-center justify-center w-full min-h-screen h-full p-8">
+                    <div className="flex flex-col items-center justify-center flex-grow w-full">
+                        {/* Logo */}
+                        <div className="mb-10">
+                            <Image
+                                src="/logo-image.svg"
+                                alt="Logo"
+                                width={200}
+                                height={50}
+                                style={{ height: "auto" }}
+                                priority
+                            />
                         </div>
-                        <p className="mb-4 text-center">
-                            Drag & Drop PPTX/PPT File
-                        </p>
-                        <p className="mb-4 text-center text-sm text-gray-500">
-                            or
-                        </p>
-                        <Button
-                            className="bg-primary text-white hover:bg-[#27592A]"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleBrowseClick();
-                            }}
-                            disabled={isLoading}
-                        >
-                            {isLoading ? "Loading..." : "Browse File"}
-                        </Button>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            accept=".pptx,.ppt"
-                            onChange={handleFileInputChange}
-                        />
-                    </div>
 
-                    {/* Tutorial Link */}
-                    <div className="mt-4 text-sm">
-                        <span>First time using Myo for presentation? </span>
-                        <a href="#" className="font-bold text-accent underline">
-                            See tutorial
-                        </a>
+                        {/* Drag & Drop Area */}
+                        <div
+                            className={`w-full max-w-[500px] h-[300px] border border-dashed ${
+                                isDragging
+                                    ? "border-[#27592A] bg-[#131913]"
+                                    : "border-gray-500"
+                            } rounded-md p-8 flex flex-col items-center justify-center cursor-pointer`}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                            onClick={handleBrowseClick}
+                        >
+                            <div className="mb-6">
+                                <Upload size={40} color="#FFFFFF" />
+                            </div>
+                            <p className="mb-4 text-center">
+                                Drag & Drop PPTX/PPT File
+                            </p>
+                            <p className="mb-4 text-center text-sm text-gray-500">
+                                or
+                            </p>
+                            <Button
+                                className="bg-primary text-white hover:bg-[#27592A]"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleBrowseClick();
+                                }}
+                                disabled={isLoading}
+                            >
+                                {isLoading ? "Loading..." : "Browse File"}
+                            </Button>
+                            <Input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept=".pptx,.ppt"
+                                onChange={handleFileInputChange}
+                            />
+                        </div>
+
+                        {/* Tutorial Link */}
+                        <div className="mt-4 text-sm">
+                            <span>First time using Myo for presentation? </span>
+                            <Button
+                                variant="link"
+                                className="font-bold text-accent underline p-0 cursor-pointer"
+                                onClick={async () => {
+                                    const response = await fetch(
+                                        "/TerraFarm.pptx"
+                                    );
+                                    const blob = await response.blob();
+                                    const file = new File(
+                                        [blob],
+                                        "TerraFarm.pptx",
+                                        { type: blob.type }
+                                    );
+                                    handleFile(file);
+                                    setTimeout(() => startOnboarding(), 4000);
+                                }}
+                            >
+                                See tutorial
+                            </Button>
+                        </div>
                     </div>
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center flex-grow w-full">
-                    {/* Simple Viewer (Lo-Fi version) */}
-                    <div className="w-full max-w-5xl mb-4">
-                        {/* File Info */}
-                        <div className="mb-4 flex justify-between items-center">
-                            <div>
-                                <h2 className="text-xl font-medium">
-                                    {selectedFile?.name}
-                                </h2>
-                                <p className="text-gray-500 text-sm">
-                                    {selectedFile &&
-                                        formatFileSize(selectedFile.size)}
-                                </p>
-                            </div>
-                            <Button
-                                onClick={handleBackClick}
-                                className="bg-gray-200 text-black hover:bg-gray-300"
-                            >
-                                Back to Upload
-                            </Button>
+                <div className="flex flex-col w-full h-screen overflow-hidden">
+                    {showOnboardingPresent && (
+                        <OnboardingPresent handleBackClick={handleBackClick} />
+                    )}
+                    {/* Header (File Info) */}
+                    <div className="my-6 mx-4 flex justify-between items-center shrink-0">
+                        <Button
+                            onClick={handleBackClick}
+                            className="bg-transparent hover:bg-transparent"
+                        >
+                            <Image
+                                src="/logo-image.svg"
+                                alt="Logo"
+                                width={80}
+                                height={20}
+                                style={{ height: "auto" }}
+                                priority
+                            />
+                        </Button>
+                        <div>
+                            <h2 className="text-xl font-medium">
+                                {selectedFile?.name}
+                            </h2>
                         </div>
-
-                        {/* Basic File Display */}
-                        <div className="w-full min-h-[600px] border border-gray-700 rounded-md overflow-auto bg-[#141614] p-8 flex flex-col items-center justify-center">
-                            <div className="text-center max-w-md">
-                                <Image
-                                    src="/icon-image.svg"
-                                    alt="PowerPoint file"
-                                    width={100}
-                                    height={100}
-                                    style={{
-                                        height: "auto",
-                                        margin: "0 auto 20px",
-                                    }}
-                                />
-                                <h3 className="text-xl font-medium mb-2">
-                                    {selectedFile?.name}
-                                </h3>
-                                <p className="text-gray-500 mb-4">
-                                    {selectedFile &&
-                                        formatFileSize(selectedFile.size)}
-                                </p>
-                                <div className="bg-gray-50 p-6 rounded-lg border border-gray-100">
-                                    <p className="mb-2">
-                                        File uploaded successfully.
-                                    </p>
-                                    <p className="text-gray-500 text-sm">
-                                        To view the presentation, prepare a
-                                        PowerPoint viewer implementation as
-                                        needed.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+                        <Button
+                            onClick={handlePresentClick}
+                            className="z-60 bg-gray-200 text-black hover:bg-gray-300 cursor-pointer"
+                        >
+                            Present
+                        </Button>
                     </div>
+                    {/* <Button
+                            onClick={handlePresentClick}
+                            className="bg-gray-200 text-black hover:bg-gray-300"
+                        >
+                            Present
+                        </Button> */}
+                    {/* </div> */}
+
+                    {/* Basic File Display */}
+                    {selectedFile && (
+                        <div className="flex-grow w-full overflow-hidden">
+                            <NutrientViewer
+                                ref={viewerRef}
+                                file={selectedFile}
+                                className="w-full h-full"
+                                overlay={
+                                    showOnboarding &&
+                                    onboardingStep && (
+                                        <OnboardingGestures
+                                            gesture={onboardingStep}
+                                            handleBackClick={handleBackClick}
+                                            handleNextStep={handleNextStep}
+                                            handleHandledPose={viewerRef.current?.handleHandledPose}
+                                        />
+                                    )
+                                }
+                            />
+                        </div>
+                    )}
                 </div>
             )}
-        </div>
+        </>
     );
 }

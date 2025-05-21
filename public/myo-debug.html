@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Myo Debug & Diagnostik</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                padding: 30px;
+                background-color: #f0f0f0;
+                line-height: 1.6;
+            }
+            .container {
+                max-width: 1000px;
+                margin: 0 auto;
+            }
+            .card {
+                background-color: #fff;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+            .log-container {
+                height: 300px;
+                overflow-y: auto;
+                background-color: #222;
+                color: #0f0;
+                padding: 15px;
+                font-family: monospace;
+                border-radius: 5px;
+            }
+            .status {
+                padding: 10px;
+                border-radius: 5px;
+                margin-bottom: 15px;
+                font-weight: bold;
+            }
+            .status.good {
+                background-color: #dff0d8;
+                color: #3c763d;
+            }
+            .status.warn {
+                background-color: #fcf8e3;
+                color: #8a6d3b;
+            }
+            .status.error {
+                background-color: #f2dede;
+                color: #a94442;
+            }
+            .button-group {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                margin-bottom: 20px;
+            }
+            button {
+                padding: 10px 16px;
+                background-color: #4a76a8;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+            }
+            button:hover {
+                background-color: #3a5b89;
+            }
+            button.danger {
+                background-color: #d9534f;
+            }
+            button.danger:hover {
+                background-color: #c9302c;
+            }
+            button.success {
+                background-color: #5cb85c;
+            }
+            button.success:hover {
+                background-color: #449d44;
+            }
+            .device-card {
+                border: 1px solid #ddd;
+                padding: 15px;
+                margin-top: 10px;
+                border-radius: 5px;
+            }
+            .device-detail {
+                display: flex;
+                justify-content: space-between;
+                border-bottom: 1px solid #eee;
+                padding: 8px 0;
+            }
+            .device-detail:last-child {
+                border-bottom: none;
+            }
+            .device-label {
+                font-weight: bold;
+                color: #555;
+            }
+            .tests-container {
+                margin-top: 20px;
+            }
+            .test-item {
+                padding: 10px;
+                border-left: 4px solid #ddd;
+                background-color: #f9f9f9;
+                margin-bottom: 10px;
+            }
+            .test-item.pass {
+                border-left-color: #5cb85c;
+            }
+            .test-item.fail {
+                border-left-color: #d9534f;
+            }
+            .test-item.pending {
+                border-left-color: #f0ad4e;
+            }
+            .myo-info {
+                padding: 10px;
+                background-color: #e8f4f8;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            .diagnostic-item {
+                margin-bottom: 8px;
+            }
+            pre {
+                background-color: #f5f5f5;
+                padding: 10px;
+                border-radius: 4px;
+                overflow-x: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Myo Armband - Debug & Diagnostik</h1>
+
+            <div class="card">
+                <h2>Status Koneksi</h2>
+                <div class="status warn" id="statusBox">
+                    Menunggu koneksi...
+                </div>
+
+                <div class="button-group">
+                    <button onclick="startConnection()">Mulai Koneksi</button>
+                    <button onclick="checkConnection()">Periksa Status</button>
+                    <button onclick="testVibrate()" class="success">
+                        Test Vibrate
+                    </button>
+                    <button onclick="unlockMyo()" class="success">
+                        Unlock
+                    </button>
+                    <button onclick="resetConnection()" class="danger">
+                        Reset Koneksi
+                    </button>
+                </div>
+
+                <div id="diagnosticInfo" class="myo-info">
+                    <div class="diagnostic-item">
+                        WebSocket Support:
+                        <span id="wsSupport">memeriksa...</span>
+                    </div>
+                    <div class="diagnostic-item">
+                        Myo.js Loaded: <span id="myoLoaded">memeriksa...</span>
+                    </div>
+                    <div class="diagnostic-item">
+                        Socket URL: <span id="socketUrl">-</span>
+                    </div>
+                    <div class="diagnostic-item">
+                        Socket Status: <span id="socketStatus">-</span>
+                    </div>
+                    <div class="diagnostic-item">
+                        API Version: <span id="apiVersion">-</span>
+                    </div>
+                    <div class="diagnostic-item">
+                        App ID: <span id="appId">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Perangkat Terhubung</h2>
+                <div id="deviceList">
+                    <p>Tidak ada perangkat yang terdeteksi.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Tes Diagnostik</h2>
+                <button onclick="runDiagnosticTests()" class="success">
+                    Jalankan Tes Diagnostik
+                </button>
+                <div class="tests-container" id="testsContainer">
+                    <div class="test-item pending">
+                        <strong>1. Periksa WebSocket</strong>
+                        <div>Status: Belum dijalankan</div>
+                    </div>
+                    <div class="test-item pending">
+                        <strong>2. Periksa Koneksi Myo Connect</strong>
+                        <div>Status: Belum dijalankan</div>
+                    </div>
+                    <div class="test-item pending">
+                        <strong>3. Periksa Device Detection</strong>
+                        <div>Status: Belum dijalankan</div>
+                    </div>
+                    <div class="test-item pending">
+                        <strong>4. Periksa Komunikasi Dua Arah</strong>
+                        <div>Status: Belum dijalankan</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Log</h2>
+                <div class="log-container" id="logContainer"></div>
+            </div>
+        </div>
+
+        <script src="/myo.js"></script>
+        <script>
+            // Fungsi untuk menambahkan log
+            function log(message, isError = false) {
+                const logContainer = document.getElementById("logContainer");
+                const entry = document.createElement("div");
+                entry.textContent = `[${
+                    new Date().toTimeString().split(" ")[0]
+                }] ${message}`;
+                if (isError) {
+                    entry.style.color = "#ff4444";
+                }
+                logContainer.appendChild(entry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+                console.log(message); // juga log ke console untuk debugging
+            }
+
+            // Fungsi untuk mengupdate status
+            function updateStatus(message, type = "warn") {
+                const statusBox = document.getElementById("statusBox");
+                statusBox.textContent = message;
+                statusBox.className = `status ${type}`;
+            }
+
+            // Periksa apakah window.Myo tersedia
+            function checkMyoAvailability() {
+                document.getElementById("wsSupport").textContent =
+                    "WebSocket" in window ? "✅ Tersedia" : "❌ Tidak tersedia";
+                document.getElementById("myoLoaded").textContent =
+                    typeof window.Myo !== "undefined"
+                        ? "✅ Dimuat"
+                        : "❌ Tidak dimuat";
+
+                if (typeof window.Myo !== "undefined") {
+                    try {
+                        document.getElementById("apiVersion").textContent =
+                            window.Myo.defaults.api_version ||
+                            "Tidak diketahui";
+                        document.getElementById("appId").textContent =
+                            window.Myo.defaults.app_id || "Tidak diketahui";
+                        document.getElementById("socketUrl").textContent =
+                            window.Myo.defaults.socket_url || "Tidak diketahui";
+
+                        if (window.Myo.socket) {
+                            const socketState = {
+                                0: "Connecting",
+                                1: "✅ Open/Connected",
+                                2: "Closing",
+                                3: "❌ Closed/Disconnected",
+                            };
+                            document.getElementById(
+                                "socketStatus"
+                            ).textContent =
+                                socketState[window.Myo.socket.readyState] ||
+                                "Unknown state";
+                        } else {
+                            document.getElementById(
+                                "socketStatus"
+                            ).textContent = "Socket belum dibuat";
+                        }
+                    } catch (error) {
+                        log(
+                            `Error saat memeriksa properti Myo: ${error.message}`,
+                            true
+                        );
+                    }
+                }
+            }
+
+            // Mulai koneksi dengan Myo
+            function startConnection() {
+                try {
+                    if (typeof window.Myo === "undefined") {
+                        log("Error: Myo.js tidak dimuat dengan benar", true);
+                        updateStatus("Myo.js tidak dimuat", "error");
+                        return;
+                    }
+
+                    // Siapkan custom error handler
+                    window.Myo.onError = function (error) {
+                        log(
+                            `Error Myo Connect: ${
+                                error
+                                    ? error.toString()
+                                    : "Koneksi dengan Myo Connect gagal"
+                            }`,
+                            true
+                        );
+                        updateStatus("Error koneksi", "error");
+                    };
+
+                    // Hubungkan ke Myo Connect
+                    window.Myo.connect("com.myotest.debug");
+                    log("Mencoba terhubung ke Myo Connect...");
+                    updateStatus("Mencoba koneksi...", "warn");
+
+                    setTimeout(checkMyoAvailability, 1000);
+                } catch (error) {
+                    log(`Error saat memulai koneksi: ${error.message}`, true);
+                    updateStatus("Error memulai koneksi", "error");
+                }
+            }
+
+            // Periksa status koneksi dan perangkat terhubung
+            function checkConnection() {
+                try {
+                    checkMyoAvailability();
+
+                    if (typeof window.Myo === "undefined") {
+                        log("Myo.js tidak dimuat", true);
+                        return;
+                    }
+
+                    // Periksa perangkat terhubung
+                    const deviceList = document.getElementById("deviceList");
+                    if (!window.Myo.myos || window.Myo.myos.length === 0) {
+                        deviceList.innerHTML =
+                            "<p>Tidak ada perangkat yang terdeteksi.</p>";
+                        log("Tidak ada perangkat Myo yang terdeteksi");
+                        return;
+                    }
+
+                    // Tampilkan informasi setiap perangkat
+                    let deviceHTML = "";
+                    window.Myo.myos.forEach((myo, index) => {
+                        deviceHTML += `
+            <div class="device-card">
+              <h3>Myo #${index + 1}: ${myo.name || "Unnamed"}</h3>
+              <div class="device-detail">
+                <span class="device-label">MAC Address:</span>
+                <span>${myo.macAddress || "N/A"}</span>
+              </div>
+              <div class="device-detail">
+                <span class="device-label">Status Koneksi:</span>
+                <span>${myo.connected ? "✅ Terhubung" : "❌ Terputus"}</span>
+              </div>
+              <div class="device-detail">
+                <span class="device-label">Status Sinkronisasi:</span>
+                <span>${
+                    myo.synced
+                        ? "✅ Tersinkronisasi"
+                        : "❌ Belum tersinkronisasi"
+                }</span>
+              </div>
+              <div class="device-detail">
+                <span class="device-label">Arm:</span>
+                <span>${myo.arm || "Tidak diketahui"}</span>
+              </div>
+              <div class="device-detail">
+                <span class="device-label">Lengan:</span>
+                <span>${myo.arm || "Tidak diketahui"}</span>
+              </div>
+              <div class="device-detail">
+                <span class="device-label">Connect Index:</span>
+                <span>${
+                    myo.connectIndex !== undefined ? myo.connectIndex : "N/A"
+                }</span>
+              </div>
+              <div class="device-detail">
+                <span class="device-label">Status Kunci:</span>
+                <span>${
+                    myo.locked !== undefined
+                        ? myo.locked
+                            ? "🔒 Locked"
+                            : "🔓 Unlocked"
+                        : "Tidak diketahui"
+                }</span>
+              </div>
+              <div class="device-detail">
+                <span class="device-label">Level Baterai:</span>
+                <span>${myo.batteryLevel || "Tidak diketahui"}</span>
+              </div>
+            </div>
+          `;
+
+                        // Request info tambahan
+                        try {
+                            myo.requestBatteryLevel();
+                            myo.requestBluetoothStrength();
+                        } catch (e) {
+                            log(
+                                `Error saat meminta informasi tambahan: ${e.message}`,
+                                true
+                            );
+                        }
+                    });
+
+                    deviceList.innerHTML = deviceHTML;
+                    log(`${window.Myo.myos.length} perangkat Myo terdeteksi`);
+
+                    if (window.Myo.myos.some((myo) => myo.connected)) {
+                        updateStatus("Perangkat terhubung", "good");
+                    } else {
+                        updateStatus(
+                            "Perangkat terdeteksi tapi tidak terhubung",
+                            "warn"
+                        );
+                    }
+                } catch (error) {
+                    log(`Error saat memeriksa koneksi: ${error.message}`, true);
+                }
+            }
+
+            // Kirim getaran ke semua Myo terhubung
+            function testVibrate() {
+                try {
+                    if (
+                        !window.Myo ||
+                        !window.Myo.myos ||
+                        window.Myo.myos.length === 0
+                    ) {
+                        log("Tidak ada Myo yang terhubung untuk getaran", true);
+                        return;
+                    }
+
+                    window.Myo.myos.forEach((myo, index) => {
+                        try {
+                            log(`Mengirim getaran ke Myo #${index + 1}`);
+                            myo.vibrate("medium");
+                        } catch (e) {
+                            log(
+                                `Error saat mencoba menggetarkan Myo #${
+                                    index + 1
+                                }: ${e.message}`,
+                                true
+                            );
+                        }
+                    });
+                } catch (error) {
+                    log(`Error saat mencoba vibrate: ${error.message}`, true);
+                }
+            }
+
+            // Unlock semua Myo terhubung
+            function unlockMyo() {
+                try {
+                    if (
+                        !window.Myo ||
+                        !window.Myo.myos ||
+                        window.Myo.myos.length === 0
+                    ) {
+                        log(
+                            "Tidak ada Myo yang terhubung untuk di-unlock",
+                            true
+                        );
+                        return;
+                    }
+
+                    window.Myo.myos.forEach((myo, index) => {
+                        try {
+                            log(`Unlock Myo #${index + 1}`);
+                            myo.unlock(true); // hold mode
+                        } catch (e) {
+                            log(
+                                `Error saat mencoba unlock Myo #${index + 1}: ${
+                                    e.message
+                                }`,
+                                true
+                            );
+                        }
+                    });
+                } catch (error) {
+                    log(`Error saat unlock: ${error.message}`, true);
+                }
+            }
+
+            // Reset koneksi
+            function resetConnection() {
+                try {
+                    if (!window.Myo) {
+                        log("Myo tidak tersedia untuk reset", true);
+                        return;
+                    }
+
+                    try {
+                        if (
+                            window.Myo.socket &&
+                            window.Myo.socket.readyState === 1
+                        ) {
+                            log("Menutup koneksi socket yang ada...");
+                            window.Myo.disconnect();
+                        }
+                    } catch (e) {
+                        log(
+                            `Error saat mencoba disconnect: ${e.message}`,
+                            true
+                        );
+                    }
+
+                    // Tunggu sebentar, lalu coba koneksi ulang
+                    setTimeout(() => {
+                        log("Mencoba koneksi ulang...");
+                        startConnection();
+                    }, 1000);
+                } catch (error) {
+                    log(`Error saat reset koneksi: ${error.message}`, true);
+                }
+            }
+
+            // Jalankan tes diagnostik
+            function runDiagnosticTests() {
+                const testsContainer =
+                    document.getElementById("testsContainer");
+                const testItems = testsContainer.querySelectorAll(".test-item");
+
+                // Reset semua tes ke status pending
+                testItems.forEach((item) => {
+                    item.className = "test-item pending";
+                    const statusDiv = item.querySelector("div");
+                    if (statusDiv)
+                        statusDiv.textContent = "Status: Berjalan...";
+                });
+
+                log("Menjalankan tes diagnostik...");
+
+                // Tes 1: Periksa WebSocket
+                setTimeout(() => {
+                    const wsTest = testItems[0];
+                    const wsStatus = wsTest.querySelector("div");
+
+                    if ("WebSocket" in window) {
+                        wsTest.className = "test-item pass";
+                        wsStatus.textContent =
+                            "Status: ✅ Lulus - WebSocket tersedia";
+                        log("Tes WebSocket: OK");
+                    } else {
+                        wsTest.className = "test-item fail";
+                        wsStatus.textContent =
+                            "Status: ❌ Gagal - WebSocket tidak tersedia";
+                        log(
+                            "Tes WebSocket: Gagal - Browser tidak mendukung WebSocket",
+                            true
+                        );
+                    }
+
+                    // Tes 2: Periksa Koneksi Myo Connect
+                    setTimeout(() => {
+                        const myoConnectTest = testItems[1];
+                        const myoConnectStatus =
+                            myoConnectTest.querySelector("div");
+
+                        try {
+                            // Buat WebSocket baru untuk tes
+                            const testSocket = new WebSocket(
+                                "ws://127.0.0.1:10138/myo/3"
+                            );
+
+                            testSocket.onopen = function () {
+                                myoConnectTest.className = "test-item pass";
+                                myoConnectStatus.textContent =
+                                    "Status: ✅ Lulus - Dapat terhubung ke Myo Connect";
+                                log("Tes Myo Connect: OK");
+                                testSocket.close();
+                            };
+
+                            testSocket.onerror = function () {
+                                myoConnectTest.className = "test-item fail";
+                                myoConnectStatus.textContent =
+                                    "Status: ❌ Gagal - Tidak dapat terhubung ke Myo Connect";
+                                log(
+                                    "Tes Myo Connect: Gagal - Tidak dapat terhubung ke Myo Connect",
+                                    true
+                                );
+                            };
+                        } catch (error) {
+                            myoConnectTest.className = "test-item fail";
+                            myoConnectStatus.textContent = `Status: ❌ Gagal - Error: ${error.message}`;
+                            log(
+                                `Tes Myo Connect: Gagal - ${error.message}`,
+                                true
+                            );
+                        }
+
+                        // Tes 3: Periksa Device Detection
+                        setTimeout(() => {
+                            const deviceTest = testItems[2];
+                            const deviceStatus =
+                                deviceTest.querySelector("div");
+
+                            if (
+                                window.Myo &&
+                                window.Myo.myos &&
+                                window.Myo.myos.length > 0
+                            ) {
+                                deviceTest.className = "test-item pass";
+                                deviceStatus.textContent = `Status: ✅ Lulus - ${window.Myo.myos.length} perangkat terdeteksi`;
+                                log(
+                                    `Tes Device Detection: OK - ${window.Myo.myos.length} perangkat terdeteksi`
+                                );
+                            } else {
+                                deviceTest.className = "test-item fail";
+                                deviceStatus.textContent =
+                                    "Status: ❌ Gagal - Tidak ada perangkat terdeteksi";
+                                log(
+                                    "Tes Device Detection: Gagal - Tidak ada perangkat terdeteksi",
+                                    true
+                                );
+                            }
+
+                            // Tes 4: Periksa Komunikasi Dua Arah
+                            setTimeout(() => {
+                                const commsTest = testItems[3];
+                                const commsStatus =
+                                    commsTest.querySelector("div");
+
+                                if (
+                                    window.Myo &&
+                                    window.Myo.myos &&
+                                    window.Myo.myos.length > 0
+                                ) {
+                                    try {
+                                        // Coba kirim perintah vibrate
+                                        window.Myo.myos[0].vibrate("short");
+                                        log(
+                                            "Mencoba vibrasi untuk tes komunikasi dua arah"
+                                        );
+
+                                        // Asumsikan berhasil jika tidak ada error
+                                        commsTest.className = "test-item pass";
+                                        commsStatus.textContent =
+                                            "Status: ✅ Lulus - Berhasil mengirim perintah vibrate";
+                                        log("Tes Komunikasi Dua Arah: OK");
+                                    } catch (error) {
+                                        commsTest.className = "test-item fail";
+                                        commsStatus.textContent = `Status: ❌ Gagal - Error: ${error.message}`;
+                                        log(
+                                            `Tes Komunikasi Dua Arah: Gagal - ${error.message}`,
+                                            true
+                                        );
+                                    }
+                                } else {
+                                    commsTest.className = "test-item fail";
+                                    commsStatus.textContent =
+                                        "Status: ❌ Gagal - Tidak ada perangkat untuk diuji";
+                                    log(
+                                        "Tes Komunikasi Dua Arah: Gagal - Tidak ada perangkat",
+                                        true
+                                    );
+                                }
+
+                                // Ringkasan tes
+                                log("Tes diagnostik selesai");
+                            }, 1000);
+                        }, 1000);
+                    }, 1000);
+                }, 500);
+            }
+
+            // Setup event listeners
+            window.addEventListener("load", function () {
+                checkMyoAvailability();
+                log('Halaman debug loaded. Klik "Mulai Koneksi" untuk memulai');
+
+                // Setup event handlers jika Myo.js tersedia
+                if (typeof window.Myo !== "undefined") {
+                    window.Myo.on("ready", function () {
+                        log("🟢 WebSocket siap dan terhubung ke Myo Connect");
+                        updateStatus("WebSocket terhubung", "warn");
+                        checkMyoAvailability();
+                    });
+
+                    window.Myo.on("connected", function () {
+                        log(`🟢 Myo terhubung: ${this.name || "Unnamed"}`);
+                        updateStatus("Myo terhubung", "good");
+                        checkConnection();
+                    });
+
+                    window.Myo.on("disconnected", function () {
+                        log("🔴 Myo terputus");
+                        updateStatus("Myo terputus", "error");
+                        checkConnection();
+                    });
+
+                    window.Myo.on("arm_synced", function (data) {
+                        log(`🦾 Myo tersinkronisasi dengan ${data.arm} arm`);
+                        updateStatus("Myo tersinkronisasi", "good");
+                        checkConnection();
+                    });
+
+                    window.Myo.on("arm_unsynced", function () {
+                        log("Myo tidak tersinkronisasi dengan lengan");
+                        updateStatus("Myo tidak tersinkronisasi", "warn");
+                        checkConnection();
+                    });
+
+                    // Deteksi semua gesture
+                    [
+                        "fist",
+                        "wave_in",
+                        "wave_out",
+                        "fingers_spread",
+                        "double_tap",
+                    ].forEach((gesture) => {
+                        window.Myo.on(gesture, function () {
+                            log(`Gesture terdeteksi: ${gesture}`);
+                        });
+                    });
+
+                    // Info baterai dan bluetooth
+                    window.Myo.on("battery_level", function (level) {
+                        log(`Level baterai: ${level}%`);
+                        checkConnection();
+                    });
+
+                    window.Myo.on("bluetooth_strength", function (strength) {
+                        log(`Kekuatan sinyal Bluetooth: ${strength}%`);
+                    });
+                }
+            });
+        </script>
+    </body>
+</html>
