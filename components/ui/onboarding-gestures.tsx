@@ -98,7 +98,7 @@ export default function OnboardingGestures({
     const isEnd = gesture === "end";
 
     const viewerRef = useRef<NutrientViewerRef>(null);
-    const unlockedRef = React.useRef(false);
+    // const unlockedRef = React.useRef(false);
 
     return (
         <>
@@ -147,68 +147,37 @@ export default function OnboardingGestures({
 
             <MyoController
                 onGesture={(myoGesture, myo) => {
-                    viewerRef.current?.updateDebugInfo(
-                        `Raw gesture: ${gesture}`
-                    );
-
                     if (isEnd) return;
 
                     if (myoGesture === "double_tap") {
-                        viewerRef.current?.handleMyoGesture("double_tap", myo);
+                        viewerRef.current?.handleHandledPose("double_tap", myo);
                         // unlockedRef.current = true;
 
                         if (isUnlock) {
                             handleNextStep(); // go to next step immediately
                             myo.vibrate("short");
-                            console.log("onboarding unlock");
+                            console.log(`onboarding: gestureLearned=${gesture}, myoGesture=${myoGesture}`);
                         }
 
                         return;
                     }
 
-                    // Only handle gestures if unlocked
-                    if (!unlockedRef.current) {
-                        toast.warning("Myo locked - Double Tap untuk unlock", {
-                            id: "skipped-gesture",
-                            duration: 1000,
-                        });
-                        return;
-                    }
-
-                    // Handle specific gesture actions
-                    const handleWithTimeout = (delay = 0) =>
-                        setTimeout(() => {
-                            handleNextStep();
-                            unlockedRef.current = false; // reset for next step
-                        }, delay);
-
                     // Filter hanya gesture yang diinginkan (kecuali 'rest')
                     if (!isUnlock && myoGesture !== "rest") {
-                        // Check for unlocked state before passing gesture
-                        // if (unlockedRef.current) {
                         console.log("onboarding ", myoGesture);
-                        // Hanya proses gesture lain jika dalam daftar
                         if (
                             myoGesture === "fist" ||
                             myoGesture === "wave_in" ||
                             myoGesture === "wave_out" ||
                             myoGesture === "fingers_spread"
                         ) {
-                            viewerRef.current?.handleMyoGesture(
+                            viewerRef.current?.handleHandledPose(
                                 myoGesture,
                                 myo
                             );
-                            handleWithTimeout(300);
+                            handleNextStep();
+                            console.log(`onboarding: gestureLearned=${gesture}, myoGesture=${myoGesture}`);
                         }
-                        // } else {
-                        //     toast.warning(
-                        //         "Myo locked - Double Tap untuk unlock",
-                        //         {
-                        //             id: "skipped-gesture",
-                        //             duration: 1000,
-                        //         }
-                        //     );
-                        // }
                     }
                 }}
                 onConnect={viewerRef.current?.handleMyoConnect}
