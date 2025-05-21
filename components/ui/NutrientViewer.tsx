@@ -6,6 +6,7 @@ import { MyoController } from "./MyoController";
 import { toast } from "sonner";
 import { MyoInstance, Pose } from "Myo";
 import { AlarmClock } from "@deemlol/next-icons";
+import { PointerOverlay } from "./PointerOverlay";
 
 type HandledPose = Exclude<Pose, "rest">;
 
@@ -68,6 +69,7 @@ export const NutrientViewer = React.forwardRef<
         null
     );
     const [pdfInitialized, setPdfInitialized] = React.useState(false);
+    const [pointerActive, setPointerActive] = React.useState(false);
 
     // State untuk Timer
     const [timerDuration, setTimerDuration] = React.useState<number>(0); // Durasi dalam menit
@@ -308,16 +310,9 @@ export const NutrientViewer = React.forwardRef<
                 break;
             case "fingers_spread": // Show all slides (thumbnails)
                 try {
-                    viewerRef.current.setViewState((state) => {
-                        const showingSidebar = !state.sidebarMode;
-                        const newSidebarMode = state.sidebarMode
-                            ? null
-                            : "THUMBNAILS";
-                        handleVibrationAndToast(gesture, myo, showingSidebar);
-
-                        // Tandai gesture ini sudah diproses
-                        processedGesturesRef.current.add(gesture);
-                        return state.set("sidebarMode", newSidebarMode);
+                    setPointerActive(state => {
+                        console.log(`Toggling pointer ${state ? "off" : "on"}`);
+                        return !state;
                     });
                 } catch (err) {
                     console.error(
@@ -595,6 +590,9 @@ export const NutrientViewer = React.forwardRef<
 
     return (
         <>
+            {pointerActive && (
+                <PointerOverlay/>
+            )}
             <MyoController
                 onGesture={(gesture, myo) => {
                     // Selalu simpan instance Myo terbaru jika berubah

@@ -297,23 +297,6 @@ export function MyoController({
         updateStatus,
     ]);
 
-    const initializeVec = useCallback(() => {
-        if (!myo) {
-            updateStatus("myo_not_available");
-            handleError(
-                new Error("Myo object not available"),
-                "availability_check"
-            );
-            return;
-        }
-
-        eventHandlersRef.current["vector"] = myo.on("vector", (vector) => {
-            console.log(
-                `Vector stream data: [${vector.x}, ${vector.y}; ${vector.theta}]`
-            );
-        });
-    }, [handleError, myo, updateStatus]);
-
     const cleanupMyo = useCallback(() => {
         if (myo) {
             try {
@@ -353,7 +336,6 @@ export function MyoController({
             try {
                 if (!myoInitialized) {
                     initializeMyo();
-                    initializeVec();
                     setMyoInitialized(true);
                 }
             } catch (e) {
@@ -375,7 +357,6 @@ export function MyoController({
     }, [
         myoInitialized,
         initializeMyo,
-        initializeVec,
         myoLoadError,
         myoLoaded,
         updateStatus,
