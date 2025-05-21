@@ -1,5 +1,6 @@
 "use client";
 
+import { loadScript } from "@/lib/utils";
 import { MyoGestureEvent, MyoInstance } from "Myo";
 import { useEffect, useRef, useState } from "react";
 
@@ -135,67 +136,78 @@ export function MyoController({
     };
 
     useEffect(() => {
-        // Impor Myo.js
-        let scriptAdded = false;
-        let initTimeout: NodeJS.Timeout;
+        // Impor myo.js dan vector.myo.js
+        let myoScriptCleanup: (() => void) | null = null;
+        let vecScriptCleanup: (() => void) | null = null;
+        let myoInitTimeout: NodeJS.Timeout;
+        let vecInitTimeout: NodeJS.Timeout;
 
         try {
-            const script = document.createElement("script");
-            script.src = "/myo.js";
-            script.async = true;
+            myoScriptCleanup = loadScript(
+                "/myo.js",
+                () => {
+                    updateStatus("script_loaded");
+                    // Tunda inisialisasi untuk memastikan script dimuat dengan benar
+                    myoInitTimeout = setTimeout(() => {
+                        try {
+                            initializeMyo();
+                        } catch (error) {
+                            handleError(error as Error, "initialization");
+                        }
+                    }, 500);
+                },
+                () => {
+                    handleError(
+                        new Error("Failed to load myo.js script"),
+                        "script_loading"
+                    );
+                    updateStatus("script_error");
+                }
+            );
 
-            script.onload = () => {
-                updateStatus("script_loaded");
-                // Tunda inisialisasi untuk memastikan script dimuat dengan benar
-                initTimeout = setTimeout(() => {
-                    try {
-                        initializeMyo();
-                    } catch (error) {
-                        handleError(error as Error, "initialization");
-                    }
-                }, 500);
-            };
-
-            script.onerror = () => {
-                handleError(
-                    new Error("Failed to load Myo.js script"),
-                    "script_loading"
-                );
-                updateStatus("script_error");
-            };
-
-            document.body.appendChild(script);
-            scriptAdded = true;
+            vecScriptCleanup = loadScript(
+                "/vector.myo.js",
+                () => {
+                    vecInitTimeout = setTimeout(() => {
+                        try {
+                            initializeVec();
+                        } catch (error) {
+                            handleError(error as Error, "initialization");
+                        }
+                    }, 500);
+                },
+                () => {
+                    handleError(
+                        new Error("Failed to load vector.myo.js script"),
+                        "script_loading"
+                    );
+                    updateStatus("script_error");
+                }
+            );
         } catch (error) {
             handleError(error as Error, "script_setup");
             updateStatus("setup_error");
         }
 
         return () => {
-            if (initTimeout) {
-                clearTimeout(initTimeout);
+            if (myoInitTimeout) {
+                clearTimeout(myoInitTimeout);
+            }
+            if (vecInitTimeout) {
+                clearTimeout(vecInitTimeout);
             }
 
             try {
                 cleanupMyo();
+                cleanupVec();
             } catch (error) {
                 console.error("Error during cleanup:", error);
             }
 
-            if (scriptAdded) {
-                try {
-                    const scriptElement = document.querySelector(
-                        'script[src="/myo.js"]'
-                    );
-                    if (scriptElement && scriptElement.parentNode) {
-                        scriptElement.parentNode.removeChild(scriptElement);
-                    }
-                } catch (error) {
-                    console.error("Error removing script:", error);
-                }
-            }
+            myoScriptCleanup?.();
+            vecScriptCleanup?.();
         };
-    }, []);
+    });
 
     const initializeMyo = () => {
         if (!window.Myo) {
@@ -333,6 +345,14 @@ export function MyoController({
         }
     };
 
+    const initializeVec = () => {
+        window.Myo.on("vector", (vector) => {
+            console.log(
+                `Vector stream data: [${vector.x}, ${vector.y}; ${vector.theta}]`
+            );
+        });
+    };
+
     const cleanupMyo = () => {
         if (window.Myo) {
             try {
@@ -356,6 +376,16 @@ export function MyoController({
                 }
             } catch (error) {
                 console.error("Error during Myo cleanup:", error);
+            }
+        }
+    };
+
+    const cleanupVec = () => {
+        if (window.Myo && window.Myo.plugins?.vector) {
+            try {
+                window.Myo.off("vector");
+            } catch (error) {
+                console.error("Error during Myo Vector cleanup:", error);
             }
         }
     };

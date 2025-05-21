@@ -39,6 +39,10 @@ declare module "Myo" {
     type MyoEvent = MyoGestureEvent | MyoStreamEvent | MyoStatusEvent | MyoRequestEvent;
 
     type MyoLockingPolicy = "default" | "none";
+
+    interface MyoPlugins extends Record<string, unknown> {
+        vector: boolean;
+    }
     
     interface MyoInstance {
         id: string;
@@ -70,6 +74,7 @@ declare module "Myo" {
     }
     
     interface MyoStatic {
+        plugins?: MyoPlugins;
         socket?: WebSocket;
         myos: MyoInstance[];
         onError: (e: unknown) => void;
@@ -77,7 +82,7 @@ declare module "Myo" {
         connect(appId: string, options?: { timeOut?: number }): void;
         disconnect(): void;
         get(id: number | string): MyoInstance;
-        setLockingPolicy(policy: MyoLockingPolicy);
+        setLockingPolicy(policy: MyoLockingPolicy): MyoStatic;
 
         on(eventName: "rest", callback: (this: MyoInstance) => void): string;
         on(eventName: Exclude<Pose, "rest">, callback: (this: MyoInstance) => void): string;
@@ -106,8 +111,8 @@ declare module "Myo" {
 
         on<T extends unknown[]>(eventName: string, callback: (this: MyoInstance, ...data: T) => void): string;
 
-        off(eventName: MyoEvent, handlerId?: string): void;
-        off(eventName: string, handlerId?: string): void;
+        off(eventName: MyoEvent): MyoStatic;
+        off(handlerId: string): MyoStatic;
     }
     
     global {
