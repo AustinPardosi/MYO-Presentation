@@ -11,7 +11,7 @@ export function PointerOverlay() {
     const [normPointerPos, setNormPointerPos] = useState<Vec2 | null>(null);
 
     const updatePointerPos = (vec: VectorData) => {
-        setNormPointerPos((curr) => {
+        setNormPointerPos(() => {
             const clampedVec: Vec2 = {
                 x: Math.max(-1, Math.min(1, vec.x)),
                 y: Math.max(-1, Math.min(1, vec.y)),

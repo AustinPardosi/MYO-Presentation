@@ -487,7 +487,7 @@ export const NutrientViewer = React.forwardRef<
                         setTimeout(() => {
                             try {
                                 currentMyo.vibrate(int);
-                            } catch (e) {
+                            } catch {
                                 /* silent */
                             }
                         }, delay);
