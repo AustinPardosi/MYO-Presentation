@@ -1,8 +1,8 @@
 "use client";
 
-import { loadScript } from "@/lib/utils";
+import { useMyo } from "@/hooks/use-myo";
 import { MyoGestureEvent, MyoInstance } from "Myo";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface MyoControllerProps {
     onGesture?: (gesture: MyoGestureEvent, myo: MyoInstance) => void;
@@ -29,6 +29,9 @@ export function MyoController({
     enableEMG = false,
     disableRest = true,
 }: MyoControllerProps) {
+    const [myo, myoLoaded, myoLoadError] = useMyo({ vector: true });
+    const [myoInitialized, setMyoInitialized] = useState(false);
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [connected, setConnected] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -39,80 +42,52 @@ export function MyoController({
     const listenersRegistered = useRef(false);
 
     // Fungsi untuk memperbarui status
-    const updateStatus = (newStatus: string) => {
-        setStatus(newStatus);
-        onStatusChange?.(newStatus);
-    };
+    const updateStatus = useCallback(
+        (newStatus: string) => {
+            setStatus(newStatus);
+            onStatusChange?.(newStatus);
+        },
+        [onStatusChange]
+    );
 
     // Fungsi untuk menangani error
-    const handleError = (error: Error, context: string = "") => {
-        console.error(`Myo error (${context}):`, error);
-        onError?.(error);
-    };
+    const handleError = useCallback(
+        (error: Error, context: string = "") => {
+            console.error(`Myo error (${context}):`, error);
+            onError?.(error);
+        },
+        [onError]
+    );
 
     // Fungsi untuk mencegah gerakan terduplikasi
-    const createGestureHandler = (
-        gesture: MyoGestureEvent,
-        myo: MyoInstance
-    ) => {
-        // Gunakan debounce untuk mencegah trigger berulang
-        let lastTriggered = 0;
-        const DEBOUNCE_TIME = 200; // waktu dalam milidetik
+    const createGestureHandler = useCallback(
+        (gesture: MyoGestureEvent, myo: MyoInstance) => {
+            // Gunakan debounce untuk mencegah trigger berulang
+            let lastTriggered = 0;
+            const DEBOUNCE_TIME = 200; // waktu dalam milidetik
 
-        return function () {
-            const now = Date.now();
-            if (now - lastTriggered > DEBOUNCE_TIME) {
-                lastTriggered = now;
-                console.log(
-                    `Gerakan ${gesture} terdeteksi (locked=${myo.locked}, synced=${myo.synced})`
-                );
+            return function () {
+                const now = Date.now();
+                if (now - lastTriggered > DEBOUNCE_TIME) {
+                    lastTriggered = now;
+                    console.log(
+                        `Gerakan ${gesture} terdeteksi (locked=${myo.locked}, synced=${myo.synced})`
+                    );
 
-                // Panggil callback onGesture jika disediakan
-                onGesture?.(gesture, myo);
-            } else {
-                console.log(
-                    `Mengabaikan gerakan ${gesture} (terlalu cepat setelah gerakan terakhir)`
-                );
-            }
-        };
-    };
+                    // Panggil callback onGesture jika disediakan
+                    onGesture?.(gesture, myo);
+                } else {
+                    console.log(
+                        `Mengabaikan gerakan ${gesture} (terlalu cepat setelah gerakan terakhir)`
+                    );
+                }
+            };
+        },
+        [onGesture]
+    );
 
-    const registerEventListeners = (myo: MyoInstance) => {
-        if (listenersRegistered.current) {
-            console.log(
-                "Event listeners sudah terdaftar, tidak mendaftarkan ulang"
-            );
-            return;
-        }
-
-        // Mendeteksi gerakan yang diinginkan (kecuali rest jika disableRest = true)
-        const gestures: MyoGestureEvent[] = [
-            "fist",
-            "wave_in",
-            "wave_out",
-            "fingers_spread",
-            "double_tap",
-        ];
-
-        if (!disableRest) {
-            gestures.push("rest");
-        }
-
-        // Pastikan semua listener dihapus terlebih dahulu
-        cleanupGestureListeners();
-
-        // Tambahkan listener baru dengan handler anti-duplikasi
-        gestures.forEach((gesture) => {
-            const handler = createGestureHandler(gesture, myo);
-            window.Myo.on(gesture, handler);
-        });
-
-        listenersRegistered.current = true;
-        console.log("Event listeners berhasil didaftarkan");
-    };
-
-    const cleanupGestureListeners = () => {
-        if (!window.Myo) return;
+    const cleanupGestureListeners = useCallback(() => {
+        if (!myo) return;
 
         const gestures: MyoGestureEvent[] = [
             "fist",
@@ -125,7 +100,7 @@ export function MyoController({
 
         gestures.forEach((gesture) => {
             try {
-                window.Myo.off(gesture);
+                myo.off(gesture);
             } catch (e) {
                 console.warn(`Error saat membersihkan listener ${gesture}:`, e);
             }
@@ -133,84 +108,47 @@ export function MyoController({
 
         listenersRegistered.current = false;
         console.log("Semua gesture listeners dibersihkan");
-    };
+    }, [myo]);
 
-    useEffect(() => {
-        // Impor myo.js dan vector.myo.js
-        let myoScriptCleanup: (() => void) | null = null;
-        let vecScriptCleanup: (() => void) | null = null;
-        let myoInitTimeout: NodeJS.Timeout;
-        let vecInitTimeout: NodeJS.Timeout;
-
-        try {
-            myoScriptCleanup = loadScript(
-                "/myo.js",
-                () => {
-                    updateStatus("script_loaded");
-                    // Tunda inisialisasi untuk memastikan script dimuat dengan benar
-                    myoInitTimeout = setTimeout(() => {
-                        try {
-                            initializeMyo();
-                        } catch (error) {
-                            handleError(error as Error, "initialization");
-                        }
-                    }, 500);
-                },
-                () => {
-                    handleError(
-                        new Error("Failed to load myo.js script"),
-                        "script_loading"
-                    );
-                    updateStatus("script_error");
-                }
-            );
-
-            vecScriptCleanup = loadScript(
-                "/vector.myo.js",
-                () => {
-                    vecInitTimeout = setTimeout(() => {
-                        try {
-                            initializeVec();
-                        } catch (error) {
-                            handleError(error as Error, "initialization");
-                        }
-                    }, 500);
-                },
-                () => {
-                    handleError(
-                        new Error("Failed to load vector.myo.js script"),
-                        "script_loading"
-                    );
-                    updateStatus("script_error");
-                }
-            );
-        } catch (error) {
-            handleError(error as Error, "script_setup");
-            updateStatus("setup_error");
-        }
-
-        return () => {
-            if (myoInitTimeout) {
-                clearTimeout(myoInitTimeout);
-            }
-            if (vecInitTimeout) {
-                clearTimeout(vecInitTimeout);
+    const registerEventListeners = useCallback(
+        (myo: MyoInstance) => {
+            if (listenersRegistered.current) {
+                console.log(
+                    "Event listeners sudah terdaftar, tidak mendaftarkan ulang"
+                );
+                return;
             }
 
-            try {
-                cleanupMyo();
-                cleanupVec();
-            } catch (error) {
-                console.error("Error during cleanup:", error);
+            // Mendeteksi gerakan yang diinginkan (kecuali rest jika disableRest = true)
+            const gestures: MyoGestureEvent[] = [
+                "fist",
+                "wave_in",
+                "wave_out",
+                "fingers_spread",
+                "double_tap",
+            ];
+
+            if (!disableRest) {
+                gestures.push("rest");
             }
 
-            myoScriptCleanup?.();
-            vecScriptCleanup?.();
-        };
-    });
+            // Pastikan semua listener dihapus terlebih dahulu
+            cleanupGestureListeners();
 
-    const initializeMyo = () => {
-        if (!window.Myo) {
+            // Tambahkan listener baru dengan handler anti-duplikasi
+            gestures.forEach((gesture) => {
+                const handler = createGestureHandler(gesture, myo);
+                myo.on(gesture, handler);
+            });
+
+            listenersRegistered.current = true;
+            console.log("Event listeners berhasil didaftarkan");
+        },
+        [cleanupGestureListeners, createGestureHandler, disableRest]
+    );
+
+    const initializeMyo = useCallback(() => {
+        if (!myo) {
             updateStatus("myo_not_available");
             handleError(
                 new Error("Myo object not available"),
@@ -223,7 +161,7 @@ export function MyoController({
             // Konfigurasi custom error handler untuk Myo
             try {
                 // TypeScript mungkin menganggap ini tidak ada, tapi ini ada di library
-                window.Myo.onError = (error: unknown) => {
+                myo.onError = (error: unknown) => {
                     handleError(
                         new Error(
                             "Myo Connect error: " +
@@ -241,24 +179,24 @@ export function MyoController({
             }
 
             // Hubungkan ke Myo Connect
-            window.Myo.connect(appName);
+            myo.connect(appName);
             updateStatus("connecting");
 
             // Deteksi ketika WebSocket terhubung
-            window.Myo.on("ready", () => {
+            myo.on("ready", () => {
                 console.log("WebSocket connection ready");
                 updateStatus("websocket_ready");
             });
 
             // Deteksi ketika WebSocket terputus
-            window.Myo.on("socket_closed", () => {
+            myo.on("socket_closed", () => {
                 console.log("WebSocket connection closed");
                 updateStatus("websocket_closed");
                 cleanupGestureListeners();
             });
 
             // Mendeteksi ketika Myo terhubung
-            window.Myo.on("connected", function () {
+            myo.on("connected", function () {
                 try {
                     console.log("Myo terhubung!", this.name);
                     setConnected(true);
@@ -288,7 +226,7 @@ export function MyoController({
             });
 
             // Mendeteksi ketika Myo terputus
-            window.Myo.on("disconnected", function () {
+            myo.on("disconnected", function () {
                 try {
                     console.log("Myo terputus!");
                     setConnected(false);
@@ -303,16 +241,16 @@ export function MyoController({
                 }
             });
 
-            window.Myo.on("locked", () => {
+            myo.on("locked", () => {
                 onLocked?.();
             });
 
-            window.Myo.on("unlocked", () => {
+            myo.on("unlocked", () => {
                 onUnlocked?.();
             });
 
             // Deteksi sinkronisasi dengan lengan
-            window.Myo.on("arm_synced", function (data) {
+            myo.on("arm_synced", function (data) {
                 try {
                     console.log(`Myo tersinkronisasi dengan ${data.arm} arm`);
                     updateStatus("synced");
@@ -331,7 +269,7 @@ export function MyoController({
                 }
             });
 
-            window.Myo.on("arm_unsynced", function () {
+            myo.on("arm_unsynced", function () {
                 try {
                     console.log("Myo tidak tersinkronisasi");
                     updateStatus("unsynced");
@@ -343,52 +281,106 @@ export function MyoController({
             handleError(error as Error, "initialization_process");
             updateStatus("init_error");
         }
-    };
+    }, [
+        appName,
+        cleanupGestureListeners,
+        enableEMG,
+        handleError,
+        myo,
+        onConnect,
+        onDisconnect,
+        onLocked,
+        onUnlocked,
+        registerEventListeners,
+        updateStatus,
+    ]);
 
-    const initializeVec = () => {
-        window.Myo.on("vector", (vector) => {
+    const initializeVec = useCallback(() => {
+        if (!myo) {
+            updateStatus("myo_not_available");
+            handleError(
+                new Error("Myo object not available"),
+                "availability_check"
+            );
+            return;
+        }
+
+        myo.on("vector", (vector) => {
             console.log(
                 `Vector stream data: [${vector.x}, ${vector.y}; ${vector.theta}]`
             );
         });
-    };
+    }, [handleError, myo, updateStatus]);
 
-    const cleanupMyo = () => {
-        if (window.Myo) {
+    const cleanupMyo = useCallback(() => {
+        if (myo) {
             try {
                 // Matikan semua event listener
-                window.Myo.off("ready");
-                window.Myo.off("socket_closed");
-                window.Myo.off("connected");
-                window.Myo.off("disconnected");
-                window.Myo.off("arm_synced");
-                window.Myo.off("arm_unsynced");
+                myo.off("ready");
+                myo.off("socket_closed");
+                myo.off("connected");
+                myo.off("disconnected");
+                myo.off("arm_synced");
+                myo.off("arm_unsynced");
 
                 // Bersihkan gesture listeners
                 cleanupGestureListeners();
 
                 // Coba putuskan koneksi jika masih tersambung
-                if (
-                    window.Myo.socket &&
-                    window.Myo.socket.readyState === WebSocket.OPEN
-                ) {
-                    window.Myo.disconnect();
+                if (myo.socket && myo.socket.readyState === WebSocket.OPEN) {
+                    myo.disconnect();
                 }
             } catch (error) {
                 console.error("Error during Myo cleanup:", error);
             }
         }
-    };
+    }, [cleanupGestureListeners, myo]);
 
-    const cleanupVec = () => {
-        if (window.Myo && window.Myo.plugins?.vector) {
+    const cleanupVec = useCallback(() => {
+        if (myo && myo.plugins?.vector) {
             try {
-                window.Myo.off("vector");
+                myo.off("vector");
             } catch (error) {
                 console.error("Error during Myo Vector cleanup:", error);
             }
         }
-    };
+    }, [myo]);
+
+    useEffect(() => {
+        if (myoLoaded) {
+            try {
+                if (!myoInitialized) {
+                    initializeMyo();
+                    initializeVec();
+                    setMyoInitialized(true);
+                }
+            } catch (e) {
+                handleError(e as Error, "initialization");
+            }
+        } else if (myoLoadError) {
+            handleError(myoLoadError, "script_loading");
+            updateStatus("script_error");
+        }
+
+        return () => {
+            try {
+                cleanupMyo();
+                cleanupVec();
+            } catch (e) {
+                console.error("Error during cleanup:", e);
+            }
+        };
+    }, [
+        myoInitialized,
+        initializeMyo,
+        initializeVec,
+        myoLoadError,
+        myoLoaded,
+        updateStatus,
+        handleError,
+        cleanupMyo,
+        cleanupVec,
+    ]);
 
     return null; // Komponen ini tidak memiliki UI, hanya logika
 }
