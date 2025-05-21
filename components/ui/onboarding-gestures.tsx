@@ -5,6 +5,7 @@ import { NutrientViewerRef } from "./NutrientViewer";
 import { MyoController } from "./MyoController";
 import React from "react";
 import { MyoInstance, Pose } from "Myo";
+import { Check } from "@deemlol/next-icons";
 
 type GestureKey =
     | "unlock"
@@ -95,6 +96,8 @@ export default function OnboardingGestures({
     handleNextStep: () => void;
     handleHandledPose?: (gesture: Exclude<Pose, "rest">, myo: MyoInstance) => void;
 }) {
+    const [isSuccess, setisSuccess] = React.useState<boolean>(false);
+
     const data = gestures[gesture];
     const isUnlock = gesture === "unlock";
     const isEnd = gesture === "end";
@@ -105,7 +108,7 @@ export default function OnboardingGestures({
     return (
         <>
             <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
-                <div className="flex flex-col rounded-xl p-6 shadow-lg text-center space-y-4 max-w-sm w-full">
+                <div className="flex flex-col rounded-xl items-center p-6 shadow-lg text-center space-y-4 max-w-lg w-full">
                     {/* Always show unlock gesture first if not "unlock" */}
                     <div className="flex flex-row gap-8 mb-10">
                         {!isUnlock && !isEnd && (
@@ -128,10 +131,18 @@ export default function OnboardingGestures({
                         )}
                     </div>
                     {formatDescription(data.description)}
+                    {isSuccess && 
+                        <div className="rounded-full p-2 mt-2 bg-[#5FB366]">
+                            <Check size={24} color="#FFFFFF" />
+                        </div>
+                    }
                     {!isEnd && (
                         <Button
                             variant="outline"
-                            onClick={handleNextStep}
+                            onClick={() => {
+                                handleNextStep();
+                                setisSuccess(false);
+                            }}
                             className="w-fit self-center mt-8 mb-0 cursor-pointer hover:bg-white/10 hover:text-white"
                         >
                             Next
@@ -139,7 +150,7 @@ export default function OnboardingGestures({
                     )}
                     <Button
                         variant="link"
-                        className="w-fit self-center p-0 text-white text-right text-xs font-semibold cursor-pointer"
+                        className="w-fit self-center p-0 text-white text-right text-sm font-semibold cursor-pointer"
                         onClick={handleBackClick}
                     >
                         {isEnd ? "Exit tutorial" : "Skip"}
@@ -151,12 +162,13 @@ export default function OnboardingGestures({
                 onGesture={(myoGesture, myo) => {
                     if (isEnd) return;
 
-                    if (myoGesture === "double_tap") {
-                        handleHandledPose?.("double_tap", myo);
+                    if (isUnlock && myoGesture === "double_tap") {
+                        // handleHandledPose?.("double_tap", myo);
                         // unlockedRef.current = true;
 
                         if (isUnlock) {
-                            handleNextStep(); // go to next step immediately
+                            // handleNextStep(); // go to next step immediately
+                            setisSuccess(true);
                             myo.vibrate("short");
                             console.log(`onboarding: gestureLearned=${gesture}, myoGesture=${myoGesture}`);
                         }
@@ -165,7 +177,8 @@ export default function OnboardingGestures({
                     }
 
                     // Filter hanya gesture yang diinginkan (kecuali 'rest')
-                    if (!isUnlock && myoGesture !== "rest") {
+                    // if (!isUnlock && myoGesture !== "rest") {
+                        console.log(`Gesture learned: ${gesture}`);
                         console.log("onboarding ", myoGesture);
                         if (
                             myoGesture === "fist" ||
@@ -173,15 +186,14 @@ export default function OnboardingGestures({
                             myoGesture === "wave_out" ||
                             myoGesture === "fingers_spread"
                         ) {
-                            handleHandledPose?.(
-                                myoGesture,
-                                myo
-                            );
-                            handleNextStep();
+                            console.log(`[ONBOARDING DEBUG]: gestureLearned=${gesture}, myoGesture=${myoGesture}`);
+                            handleHandledPose?.(myoGesture,myo);
+                            setisSuccess(true);
+                            // handleNextStep();
                             myo.vibrate("short");
                             console.log(`onboarding: gestureLearned=${gesture}, myoGesture=${myoGesture}`);
                         }
-                    }
+                    // }
                 }}
                 onConnect={viewerRef.current?.handleMyoConnect}
                 onDisconnect={viewerRef.current?.handleMyoDisconnect}

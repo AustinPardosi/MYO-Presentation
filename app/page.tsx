@@ -311,13 +311,6 @@ export default function Home() {
                     {showOnboardingPresent && (
                         <OnboardingPresent handleBackClick={handleBackClick} />
                     )}
-                    {showOnboarding && onboardingStep && (
-                        <OnboardingGestures
-                            gesture={onboardingStep}
-                            handleBackClick={handleBackClick}
-                            handleNextStep={handleNextStep}
-                        />
-                    )}
                     {/* Header (File Info) */}
                     <div className="my-6 mx-4 flex justify-between items-center shrink-0">
                         <Button
