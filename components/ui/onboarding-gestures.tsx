@@ -195,7 +195,7 @@ export default function OnboardingGestures({
                         }
                     // }
                 }}
-                onConnect={viewerRef.current?.handleMyoConnect}
+                onConnect={viewerRef.current?._handleMyoConnect}
                 onDisconnect={viewerRef.current?.handleMyoDisconnect}
                 onError={viewerRef.current?.handleMyoError}
                 onStatusChange={viewerRef.current?.handleMyoStatusChange}

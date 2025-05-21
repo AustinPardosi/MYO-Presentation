@@ -5,6 +5,7 @@ import * as React from "react";
 import { MyoController } from "./MyoController";
 import { toast } from "sonner";
 import { MyoInstance, Pose } from "Myo";
+import { AlarmClock } from "@deemlol/next-icons";
 
 type HandledPose = Exclude<Pose, "rest">;
 
@@ -50,10 +51,11 @@ export interface NutrientViewerRef {
         gesture: Exclude<Pose, "rest">,
         myo: MyoInstance
     ) => void;
-    handleMyoConnect: (myo: MyoInstance) => void;
+    _handleMyoConnect: (myo: MyoInstance) => void;
     handleMyoDisconnect: () => void;
     handleMyoError: (error: Error) => void;
     handleMyoStatusChange: (status: string) => void;
+    setTimer: (minutes: number) => void;
 }
 
 export const NutrientViewer = React.forwardRef<
@@ -66,6 +68,13 @@ export const NutrientViewer = React.forwardRef<
         null
     );
     const [pdfInitialized, setPdfInitialized] = React.useState(false);
+
+    // State untuk Timer
+    const [timerDuration, setTimerDuration] = React.useState<number>(0); // Durasi dalam menit
+    const [timeLeft, setTimeLeft] = React.useState<number>(0); // Sisa waktu dalam detik
+    const [isTimerRunning, setIsTimerRunning] = React.useState<boolean>(false);
+    const timerIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+    const myoInstanceRef = React.useRef<MyoInstance | null>(null); // Ref untuk instance Myo
 
     // Ref untuk menyimpan waktu terakhir gesture diproses
     const lastGestureTimeRef = React.useRef<number>(0);
@@ -138,15 +147,36 @@ export const NutrientViewer = React.forwardRef<
         }
     };
 
+    // Fungsi internal untuk menangani koneksi Myo, berbeda dari prop
+    const internalHandleMyoConnect = (myo: MyoInstance) => {
+        myoInstanceRef.current = myo; // Simpan instance Myo
+        toast.success("Myo terhubung! Lakukan Double Tap untuk unlock gesture");
+        vibrateOnEvent(myo);
+    };
+
     // Ekspos fungsi ke komponen parent
     React.useImperativeHandle(ref, () => ({
         toggleFullscreen,
         setCurrentPage,
         handleHandledPose,
-        handleMyoConnect,
+        _handleMyoConnect: internalHandleMyoConnect,
         handleMyoDisconnect,
         handleMyoError,
         handleMyoStatusChange,
+        setTimer: (minutes: number) => {
+            if (!isTimerRunning) {
+                const newDuration = Math.max(0, minutes); // Pastikan tidak negatif
+                setTimerDuration(newDuration);
+                setTimeLeft(newDuration * 60);
+                toast.info(
+                    `Timer diatur ke ${newDuration} menit. Masuk fullscreen untuk memulai.`
+                );
+            } else {
+                toast.warning(
+                    "Timer sedang berjalan. Hentikan dulu untuk mengubah durasi."
+                );
+            }
+        },
     }));
 
     // Cek status WebSocket
@@ -316,14 +346,9 @@ export const NutrientViewer = React.forwardRef<
         }, 500); // Tambahkan delay untuk memastikan WebSocket siap
     };
 
-    // Handle Myo connection
-    const handleMyoConnect = (myo: MyoInstance) => {
-        toast.success("Myo terhubung! Lakukan Double Tap untuk unlock gesture");
-        vibrateOnEvent(myo);
-    };
-
     // Handle Myo disconnection
     const handleMyoDisconnect = () => {
+        myoInstanceRef.current = null; // Hapus instance Myo saat diskonek
         toast.error("Myo terputus!");
     };
 
@@ -351,6 +376,13 @@ export const NutrientViewer = React.forwardRef<
     const onFullScreenChange = () => {
         viewerRef.current?.setViewState((state) => {
             const isFullscreen = !!document.fullscreenElement;
+            if (isFullscreen && timerDuration > 0) {
+                // Mulai atau lanjutkan timer hanya jika durasi sudah diatur
+                startTimer();
+            } else if (!isFullscreen && isTimerRunning) {
+                // Hentikan timer saat keluar fullscreen
+                stopTimer();
+            }
             return state
                 .set("showToolbar", !isFullscreen)
                 .set("sidebarMode", isFullscreen ? null : "THUMBNAILS");
@@ -366,7 +398,7 @@ export const NutrientViewer = React.forwardRef<
                 onFullScreenChange
             );
         };
-    }, []);
+    }, [isTimerRunning, timerDuration]);
 
     // Request file content read into a raw buffer for direct access
     React.useEffect(() => {
@@ -446,10 +478,129 @@ export const NutrientViewer = React.forwardRef<
         return cleanup;
     }, [fileBuffer, pdfInitialized]); // Hapus myoConnected dan unlocked dari dependencies agar tidak re-mount
 
+    // Helper function untuk getaran Myo terkait timer
+    const vibrateMyoForTimer = (
+        intensity: VibrateIntensity | VibrateIntensity[],
+        myoToUse?: MyoInstance | null
+    ) => {
+        const currentMyo = myoToUse || myoInstanceRef.current;
+        if (currentMyo && currentMyo.connected && isWebSocketOpen()) {
+            try {
+                if (Array.isArray(intensity)) {
+                    let delay = 0;
+                    intensity.forEach((int) => {
+                        setTimeout(() => {
+                            try {
+                                currentMyo.vibrate(int);
+                            } catch (e) {
+                                /* silent */
+                            }
+                        }, delay);
+                        delay += int === "long" ? 700 : 500; // Jeda lebih lama setelah getaran panjang
+                    });
+                } else {
+                    currentMyo.vibrate(intensity);
+                }
+            } catch (e) {
+                console.warn("Gagal melakukan getaran Myo untuk timer:", e);
+            }
+        }
+    };
+
+    // Countdown logic for timer
+    React.useEffect(() => {
+        if (isTimerRunning && timeLeft > 0) {
+            timerIntervalRef.current = setInterval(() => {
+                setTimeLeft((prevTime) => {
+                    const newTimeLeft = prevTime - 1;
+
+                    if (newTimeLeft <= 0) {
+                        if (timerIntervalRef.current)
+                            clearInterval(timerIntervalRef.current!);
+                        setIsTimerRunning(false);
+                        toast.info("Waktu presentasi habis!");
+                        vibrateMyoForTimer(["long", "long"]); // Notifikasi waktu habis
+                        // Optional: Keluar dari fullscreen saat waktu habis
+                        // if (document.fullscreenElement) {
+                        // document.exitFullscreen();
+                        // }
+                        return 0;
+                    }
+
+                    // Notifikasi getaran
+                    if (newTimeLeft === 5 * 60) {
+                        // 5 menit
+                        toast.info("Sisa waktu 5 menit");
+                        vibrateMyoForTimer("short");
+                    } else if (newTimeLeft === 3 * 60) {
+                        // 3 menit
+                        toast.info("Sisa waktu 3 menit");
+                        vibrateMyoForTimer("medium");
+                    } else if (newTimeLeft === 1 * 60) {
+                        // 1 menit
+                        toast.info("Sisa waktu 1 menit");
+                        vibrateMyoForTimer("long");
+                    }
+                    return newTimeLeft;
+                });
+            }, 1000);
+        } else if (timeLeft <= 0 && isTimerRunning) {
+            setIsTimerRunning(false); // Pastikan timer berhenti jika waktu habis secara manual diubah
+            if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+            }
+        }
+
+        return () => {
+            if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+            }
+        };
+    }, [isTimerRunning, timeLeft]);
+
+    const startTimer = () => {
+        if (timerDuration > 0) {
+            // Jika timer sudah berjalan dan di-start lagi (misal karena re-fullscreen),
+            // kita lanjutkan dari timeLeft jika masih ada, atau reset jika sudah 0.
+            if (timeLeft <= 0 || !isTimerRunning) {
+                // Reset jika waktu habis atau belum berjalan
+                setTimeLeft(timerDuration * 60);
+            }
+            setIsTimerRunning(true);
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            toast.success(
+                `Timer dimulai: ${minutes} menit ${seconds} detik tersisa.`
+            );
+        } else {
+            toast.warning(
+                "Atur durasi timer terlebih dahulu (minimal 1 menit)."
+            );
+        }
+    };
+
+    const stopTimer = () => {
+        setIsTimerRunning(false);
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+        }
+        // Jangan reset timeLeft agar bisa dilanjutkan
+        // setTimeLeft(0);
+        if (timeLeft > 0) {
+            toast.info("Timer dijeda. Masuk fullscreen untuk melanjutkan.");
+        } else {
+            toast.info("Timer selesai. Atur ulang durasi untuk memulai lagi.");
+        }
+    };
+
     return (
         <>
             <MyoController
                 onGesture={(gesture, myo) => {
+                    // Selalu simpan instance Myo terbaru jika berubah
+                    if (myo && myoInstanceRef.current !== myo) {
+                        myoInstanceRef.current = myo;
+                    }
                     // Always process double_tap immediately no matter what
                     if (gesture === "double_tap") {
                         handleHandledPose("double_tap", myo);
@@ -470,7 +621,7 @@ export const NutrientViewer = React.forwardRef<
                         }
                     }
                 }}
-                onConnect={handleMyoConnect}
+                onConnect={internalHandleMyoConnect}
                 onDisconnect={handleMyoDisconnect}
                 onLocked={handleMyoLocked}
                 onError={handleMyoError}
@@ -480,6 +631,60 @@ export const NutrientViewer = React.forwardRef<
             <div ref={containerRef} className={className} {...props}>
                 {overlay && (
                     <div className="absolute inset-0 z-50">{overlay}</div>
+                )}
+            </div>
+            {/* UI untuk Timer Input */}
+            <div className="fixed bottom-0.5 right-0.5 z-[100] bg-sidebar opacity-80 px-3 py-2 rounded-lg shadow-xl flex items-center justify-center space-x-2 text-white">
+                <AlarmClock size={18} color="#FFFFFF" />
+                <label htmlFor="timerInput" className="text-xs font-medium">
+                    Timer (menit):
+                </label>
+                <input // Menggunakan input HTML standar untuk kesederhanaan
+                    id="timerInput"
+                    type="number"
+                    min="0"
+                    className="w-12 p-1 text-xs rounded bg-gray border border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-white"
+                    value={timerDuration}
+                    onChange={(e) => {
+                        if (!isTimerRunning) {
+                            const newDuration =
+                                parseInt(e.target.value, 10) || 0;
+                            setTimerDuration(newDuration);
+                            setTimeLeft(newDuration * 60); // Update timeLeft juga saat durasi diubah manual
+                        }
+                    }}
+                    disabled={isTimerRunning}
+                    placeholder="Menit"
+                />
+                {/* {isTimerRunning ? (
+                    <div className="text-lg font-semibold tabular-nums">
+                        {Math.floor(timeLeft / 60)}:
+                        {("0" + (timeLeft % 60)).slice(-2)}
+                    </div>
+                ) : (
+                    <button
+                        onClick={() => {
+                            if (timerDuration > 0 && containerRef.current) {
+                                containerRef.current.requestFullscreen(); // Ini akan memicu onFullScreenChange dan startTimer
+                            } else if (timerDuration <= 0) {
+                                toast.warning(
+                                    "Masukkan durasi timer terlebih dahulu (minimal 1 menit)."
+                                );
+                            }
+                        }}
+                        disabled={timerDuration <= 0}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium disabled:opacity-50"
+                    >
+                        Mulai & Fullscreen
+                    </button>
+                )} */}
+                {isTimerRunning && (
+                    <button
+                        onClick={stopTimer}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-sm font-medium"
+                    >
+                        Jeda Timer
+                    </button>
                 )}
             </div>
         </>
