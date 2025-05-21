@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { NutrientViewerRef } from "./NutrientViewer";
 import { MyoController } from "./MyoController";
 import React from "react";
-import { toast } from "sonner";
+import { MyoInstance, Pose } from "Myo";
 
 type GestureKey =
     | "unlock"
@@ -88,10 +88,12 @@ export default function OnboardingGestures({
     gesture,
     handleBackClick,
     handleNextStep,
+    handleHandledPose,
 }: {
     gesture: GestureKey;
     handleBackClick: () => void;
     handleNextStep: () => void;
+    handleHandledPose?: (gesture: Exclude<Pose, "rest">, myo: MyoInstance) => void;
 }) {
     const data = gestures[gesture];
     const isUnlock = gesture === "unlock";
@@ -125,7 +127,7 @@ export default function OnboardingGestures({
                             />
                         )}
                     </div>
-                    <p>{formatDescription(data.description)}</p>
+                    {formatDescription(data.description)}
                     {!isEnd && (
                         <Button
                             variant="outline"
@@ -150,7 +152,7 @@ export default function OnboardingGestures({
                     if (isEnd) return;
 
                     if (myoGesture === "double_tap") {
-                        viewerRef.current?.handleHandledPose("double_tap", myo);
+                        handleHandledPose?.("double_tap", myo);
                         // unlockedRef.current = true;
 
                         if (isUnlock) {
@@ -171,11 +173,12 @@ export default function OnboardingGestures({
                             myoGesture === "wave_out" ||
                             myoGesture === "fingers_spread"
                         ) {
-                            viewerRef.current?.handleHandledPose(
+                            handleHandledPose?.(
                                 myoGesture,
                                 myo
                             );
                             handleNextStep();
+                            myo.vibrate("short");
                             console.log(`onboarding: gestureLearned=${gesture}, myoGesture=${myoGesture}`);
                         }
                     }

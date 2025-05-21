@@ -5,7 +5,6 @@ import * as React from "react";
 import { MyoController } from "./MyoController";
 import { toast } from "sonner";
 import { MyoInstance, Pose } from "Myo";
-import { Lock, Unlock } from "@deemlol/next-icons";
 
 type HandledPose = Exclude<Pose, "rest">;
 
@@ -67,7 +66,6 @@ export const NutrientViewer = React.forwardRef<
         null
     );
     const [pdfInitialized, setPdfInitialized] = React.useState(false);
-    const [myo, setMyo] = React.useState<MyoInstance>();
 
     // Ref untuk menyimpan waktu terakhir gesture diproses
     const lastGestureTimeRef = React.useRef<number>(0);
@@ -320,7 +318,6 @@ export const NutrientViewer = React.forwardRef<
 
     // Handle Myo connection
     const handleMyoConnect = (myo: MyoInstance) => {
-        setMyo(myo);
         toast.success("Myo terhubung! Lakukan Double Tap untuk unlock gesture");
         vibrateOnEvent(myo);
     };
@@ -451,19 +448,6 @@ export const NutrientViewer = React.forwardRef<
 
     return (
         <>
-            {myo && (
-                <div
-                    className={`fixed z-40 m-4 px-2 py-1 rounded-lg opacity-75 flex flex-row gap-1 items-center ${
-                        myo.locked ? "bg-background" : "bg-primary"
-                    }`}
-                >
-                    myo.locked ? <Lock size={12} color="#FFFFFF" />
-                    : <Unlock size={12} color="#FFFFFF" />
-                    <p className="text-xs">
-                        {myo.locked ? "Myo locked" : "Myo unlocked"}
-                    </p>
-                </div>
-            )}
             <MyoController
                 onGesture={(gesture, myo) => {
                     // Always process double_tap immediately no matter what

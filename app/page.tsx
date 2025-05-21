@@ -367,6 +367,7 @@ export default function Home() {
                                             gesture={onboardingStep}
                                             handleBackClick={handleBackClick}
                                             handleNextStep={handleNextStep}
+                                            handleHandledPose={viewerRef.current?.handleHandledPose}
                                         />
                                     )
                                 }
