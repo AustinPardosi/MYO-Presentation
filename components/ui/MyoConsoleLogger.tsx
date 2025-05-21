@@ -297,7 +297,7 @@ export function MyoConsoleLogger() {
             if (batteryCheckIntervalRef.current) {
                 clearInterval(batteryCheckIntervalRef.current);
             }
-            cleanupMyo();
+            // cleanupMyo();
         };
     }, [
         cleanupMyo,

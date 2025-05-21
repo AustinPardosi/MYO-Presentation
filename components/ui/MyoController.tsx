@@ -366,8 +366,8 @@ export function MyoController({
 
         return () => {
             try {
-                cleanupMyo();
-                cleanupVec();
+                // cleanupMyo();
+                // cleanupVec();
             } catch (e) {
                 console.error("Error during cleanup:", e);
             }
