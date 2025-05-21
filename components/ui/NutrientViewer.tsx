@@ -5,6 +5,7 @@ import * as React from "react";
 import { MyoController } from "./MyoController";
 import { toast } from "sonner";
 import { MyoInstance, Pose } from "Myo";
+import { AlarmClock } from "@deemlol/next-icons";
 
 type HandledPose = Exclude<Pose, "rest">;
 
@@ -633,15 +634,16 @@ export const NutrientViewer = React.forwardRef<
                 )}
             </div>
             {/* UI untuk Timer Input */}
-            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] bg-gray-800 bg-opacity-80 p-3 rounded-lg shadow-xl flex items-center space-x-3 text-white">
-                <label htmlFor="timerInput" className="text-sm font-medium">
+            <div className="fixed bottom-0.5 right-0.5 z-[100] bg-sidebar opacity-80 px-3 py-2 rounded-lg shadow-xl flex items-center justify-center space-x-2 text-white">
+                <AlarmClock size={18} color="#FFFFFF" />
+                <label htmlFor="timerInput" className="text-xs font-medium">
                     Timer (menit):
                 </label>
                 <input // Menggunakan input HTML standar untuk kesederhanaan
                     id="timerInput"
                     type="number"
                     min="0"
-                    className="w-20 p-2 rounded bg-gray-700 border border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-white"
+                    className="w-12 p-1 text-xs rounded bg-gray border border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-white"
                     value={timerDuration}
                     onChange={(e) => {
                         if (!isTimerRunning) {
@@ -654,7 +656,7 @@ export const NutrientViewer = React.forwardRef<
                     disabled={isTimerRunning}
                     placeholder="Menit"
                 />
-                {isTimerRunning ? (
+                {/* {isTimerRunning ? (
                     <div className="text-lg font-semibold tabular-nums">
                         {Math.floor(timeLeft / 60)}:
                         {("0" + (timeLeft % 60)).slice(-2)}
@@ -675,7 +677,7 @@ export const NutrientViewer = React.forwardRef<
                     >
                         Mulai & Fullscreen
                     </button>
-                )}
+                )} */}
                 {isTimerRunning && (
                     <button
                         onClick={stopTimer}
