@@ -590,9 +590,6 @@ export const NutrientViewer = React.forwardRef<
 
     return (
         <>
-            {pointerActive && (
-                <PointerOverlay/>
-            )}
             <MyoController
                 onGesture={(gesture, myo) => {
                     // Selalu simpan instance Myo terbaru jika berubah
@@ -604,7 +601,7 @@ export const NutrientViewer = React.forwardRef<
                         handleHandledPose("double_tap", myo);
                         return;
                     }
-
+                    
                     // Filter hanya gesture yang diinginkan (kecuali 'rest')
                     if (gesture !== "rest") {
                         // Check for unlocked state before passing gesture
@@ -625,8 +622,11 @@ export const NutrientViewer = React.forwardRef<
                 onError={handleMyoError}
                 onStatusChange={handleMyoStatusChange}
                 appName="myo.presentation.app"
-            />
+                />
             <div ref={containerRef} className={className} {...props}>
+                {pointerActive && (
+                    <PointerOverlay/>
+                )}
                 {overlay && (
                     <div className="absolute inset-0 z-50">{overlay}</div>
                 )}

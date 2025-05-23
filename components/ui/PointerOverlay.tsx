@@ -44,7 +44,7 @@ export function PointerOverlay() {
     return (
         normPointerPos && (
             <div
-                className="absolute w-4 h-4 z-40 rounded-full bg-red-400 shadow-2xl shadow-red-500/50"
+                className="absolute w-4 h-4 z-50 rounded-full bg-red-400 shadow-2xl shadow-red-500/50"
                 style={{
                     left: `${normPointerPos.x}%`,
                     top: `${normPointerPos.y}%`,
