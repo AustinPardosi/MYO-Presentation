@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // Type untuk listener function
 export type GestureHandler = <T>(timestamp: number, data?: T) => void;
@@ -59,7 +59,7 @@ export function MyoTutorialListener({
     const [gestureHistory, setGestureHistory] = useState<GestureLog<unknown>[]>([]);
 
     // Fungsi untuk tracking gerakan
-    const trackGesture = (gesture: string, data?: unknown) => {
+    const trackGesture = useCallback((gesture: string, data?: unknown) => {
         const timestamp = Date.now();
 
         // Log ke console jika diminta
@@ -80,7 +80,7 @@ export function MyoTutorialListener({
 
         // Return timestamp untuk digunakan di handler spesifik
         return timestamp;
-    };
+    }, [keepHistory, logToConsole, onAnyGesture]);
     
     // Inisialisasi dan setup Myo
     useEffect(() => {
@@ -233,6 +233,7 @@ export function MyoTutorialListener({
         onRotate,
         onRest,
         onAnyGesture,
+        trackGesture,
         logToConsole,
         appName,
     ]);

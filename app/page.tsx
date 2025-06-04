@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Upload } from "@deemlol/next-icons";
 import {
@@ -179,7 +179,7 @@ export default function Home() {
         setShowOnboardingPresent(false);
     };
 
-    const handlePresentClick = () => {
+    const handlePresentClick = useCallback(() => {
         if (showOnboardingPresent) {
             setShowOnboardingPresent(false); // hide onboarding overlay
             viewerRef.current?.toggleFullscreen();
@@ -191,7 +191,7 @@ export default function Home() {
         } else {
             viewerRef.current?.toggleFullscreen();
         }
-    };
+    }, [showOnboardingPresent]);
 
     // Tambahkan event listener untuk shortcut keyboard "Ctrl + M"
     useEffect(() => {
@@ -211,7 +211,7 @@ export default function Home() {
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [showOnboardingPresent]); // Dependensi karena handlePresentClick menggunakan showOnboardingPresent
+    }, [showOnboardingPresent, handlePresentClick]); // Dependensi karena handlePresentClick menggunakan showOnboardingPresent
 
     const startOnboarding = () => {
         setShowOnboardingPresent(true);

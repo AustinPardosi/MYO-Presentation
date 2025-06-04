@@ -367,8 +367,43 @@ export const NutrientViewer = React.forwardRef<
         }
     };
 
+    const startTimer = React.useCallback(() => {
+        if (timerDuration > 0) {
+            // Jika timer sudah berjalan dan di-start lagi (misal karena re-fullscreen),
+            // kita lanjutkan dari timeLeft jika masih ada, atau reset jika sudah 0.
+            if (timeLeft <= 0 || !isTimerRunning) {
+                // Reset jika waktu habis atau belum berjalan
+                setTimeLeft(timerDuration * 60);
+            }
+            setIsTimerRunning(true);
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            toast.success(
+                `Timer dimulai: ${minutes} menit ${seconds} detik tersisa.`
+            );
+        } else {
+            toast.warning(
+                "Atur durasi timer terlebih dahulu (minimal 1 menit)."
+            );
+        }
+    }, [isTimerRunning, timeLeft, timerDuration]);
+
+    const stopTimer = React.useCallback(() => {
+        setIsTimerRunning(false);
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+        }
+        // Jangan reset timeLeft agar bisa dilanjutkan
+        // setTimeLeft(0);
+        if (timeLeft > 0) {
+            toast.info("Timer dijeda. Masuk fullscreen untuk melanjutkan.");
+        } else {
+            toast.info("Timer selesai. Atur ulang durasi untuk memulai lagi.");
+        }
+    }, [timeLeft]);
+
     // Hide toolbar and sidebar when on fullscreen mode
-    const onFullScreenChange = () => {
+    const onFullScreenChange = React.useCallback(() => {
         viewerRef.current?.setViewState((state) => {
             const isFullscreen = !!document.fullscreenElement;
             if (isFullscreen && timerDuration > 0) {
@@ -382,7 +417,7 @@ export const NutrientViewer = React.forwardRef<
                 .set("showToolbar", !isFullscreen)
                 .set("sidebarMode", isFullscreen ? null : "THUMBNAILS");
         });
-    };
+    }, [isTimerRunning, startTimer, stopTimer, timerDuration]);
 
     // Add event listeners
     React.useEffect(() => {
@@ -393,7 +428,7 @@ export const NutrientViewer = React.forwardRef<
                 onFullScreenChange
             );
         };
-    }, [isTimerRunning, timerDuration]);
+    }, [isTimerRunning, onFullScreenChange, timerDuration]);
 
     // Request file content read into a raw buffer for direct access
     React.useEffect(() => {
@@ -474,7 +509,7 @@ export const NutrientViewer = React.forwardRef<
     }, [fileBuffer, pdfInitialized]); // Hapus myoConnected dan unlocked dari dependencies agar tidak re-mount
 
     // Helper function untuk getaran Myo terkait timer
-    const vibrateMyoForTimer = (
+    const vibrateMyoForTimer = React.useCallback((
         intensity: VibrateIntensity | VibrateIntensity[],
         myoToUse?: MyoInstance | null
     ) => {
@@ -500,7 +535,7 @@ export const NutrientViewer = React.forwardRef<
                 console.warn("Gagal melakukan getaran Myo untuk timer:", e);
             }
         }
-    };
+    }, []);
 
     // Countdown logic for timer
     React.useEffect(() => {
@@ -551,42 +586,7 @@ export const NutrientViewer = React.forwardRef<
                 clearInterval(timerIntervalRef.current);
             }
         };
-    }, [isTimerRunning, timeLeft]);
-
-    const startTimer = () => {
-        if (timerDuration > 0) {
-            // Jika timer sudah berjalan dan di-start lagi (misal karena re-fullscreen),
-            // kita lanjutkan dari timeLeft jika masih ada, atau reset jika sudah 0.
-            if (timeLeft <= 0 || !isTimerRunning) {
-                // Reset jika waktu habis atau belum berjalan
-                setTimeLeft(timerDuration * 60);
-            }
-            setIsTimerRunning(true);
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            toast.success(
-                `Timer dimulai: ${minutes} menit ${seconds} detik tersisa.`
-            );
-        } else {
-            toast.warning(
-                "Atur durasi timer terlebih dahulu (minimal 1 menit)."
-            );
-        }
-    };
-
-    const stopTimer = () => {
-        setIsTimerRunning(false);
-        if (timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current);
-        }
-        // Jangan reset timeLeft agar bisa dilanjutkan
-        // setTimeLeft(0);
-        if (timeLeft > 0) {
-            toast.info("Timer dijeda. Masuk fullscreen untuk melanjutkan.");
-        } else {
-            toast.info("Timer selesai. Atur ulang durasi untuk memulai lagi.");
-        }
-    };
+    }, [isTimerRunning, timeLeft, vibrateMyoForTimer]);
 
     return (
         <>
