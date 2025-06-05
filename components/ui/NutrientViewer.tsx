@@ -26,7 +26,7 @@ const gestureNames = {
 const gestureVibrations: Record<HandledPose, VibrateIntensity> = {
     wave_in: "short",
     wave_out: "short",
-    fist: "medium",
+    fist: "short",
     fingers_spread: "short",
     double_tap: "short",
 };
